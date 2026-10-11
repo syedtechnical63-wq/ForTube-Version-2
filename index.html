@@ -417,6 +417,7 @@
         </div>
 
         <!-- 📊 REWARDS DASHBOARD -->
+        <!-- 📊 REVENUE + ANALYTICS DASHBOARD -->
         <div class="criteria-card" id="monetizationRevenuePage" style="display:none;">
           <h2>💰 Creator Dashboard</h2>
           
@@ -448,6 +449,7 @@
 
           </div>
 
+          <!-- 📈 ANALYTICS GRAPH -->
           <div style="background:white;border-radius:14px;padding:14px;margin-bottom:14px;border:1px solid #d9ecf5;">
             <div style="font-size:0.8rem;font-weight:800;color:#0b4a5e;margin-bottom:10px;">
               <i class="fas fa-chart-line"></i> Last 7 Days Growth
@@ -466,6 +468,64 @@
             </div>
           </div>
 
+          <!-- 💰 Revenue Breakdown -->
+          <div style="background:#f7fcff;border-radius:14px;padding:14px;margin-bottom:14px;border:1px solid #d9ecf5;">
+            <div style="font-size:0.8rem;font-weight:800;color:#0b4a5e;margin-bottom:10px;">
+              <i class="fas fa-chart-pie"></i> Rewards Breakdown
+            </div>
+            <div style="display:flex;justify-content:space-between;font-size:0.78rem;color:#4d7e8c;padding:6px 0;">
+              <span><i class="fas fa-users" style="color:#d97706;width:16px;"></i> Subscribers Rewards</span>
+              <span id="revenueFromSubs" style="font-weight:800;color:#1e8b4b;">$0.00</span>
+            </div>
+            <div style="display:flex;justify-content:space-between;font-size:0.78rem;color:#4d7e8c;padding:6px 0;">
+              <span><i class="fas fa-clock" style="color:#1c7aa3;width:16px;"></i> Watch Time Rewards</span>
+              <span id="revenueFromWatch" style="font-weight:800;color:#1c7aa3;">$0.00</span>
+            </div>
+            <div style="display:flex;justify-content:space-between;font-size:0.9rem;color:#0b4a5e;padding:8px 0;border-top:2px solid #cbe3f0;margin-top:8px;">
+              <span style="font-weight:800;">Total Rewards</span>
+              <span id="totalRevenueBreakdown" style="font-weight:900;color:#1e8b4b;">$0.00</span>
+            </div>
+          </div>
+
+          <!-- Qualified Views -->
+          <div class="criteria-item">
+            <div class="ci-icon"><i class="fas fa-eye"></i></div>
+            <div class="ci-text"><h4>Qualified Views</h4><p>From other users</p></div>
+            <span class="ci-progress" id="qualifiedViewsRevenue">0</span>
+          </div>
+
+          <!-- 🎯 WITHDRAWAL INPUT SECTION -->
+          <div class="withdraw-input-section">
+            <div class="wis-balance">
+              <span class="wis-balance-label">Available Balance</span>
+              <span class="wis-balance-amount">$<span id="currentRevenue">0.00</span></span>
+            </div>
+            
+            <label class="wis-label">Enter Withdrawal Amount (USD) *</label>
+            <div class="wis-input-wrap">
+              <span class="wis-dollar">$</span>
+              <input 
+                type="number" 
+                id="withdrawAmountInput" 
+                class="wis-input" 
+                placeholder="Minimum 10.00" 
+                step="0.01" 
+                min="10"
+              >
+            </div>
+            <div class="wis-hint">
+              <i class="fas fa-info-circle"></i>
+              Minimum withdrawal: <strong>$10.00</strong>
+            </div>
+            
+            <div id="withdrawError" class="wis-error" style="display:none;"></div>
+          </div>
+
+          <!-- Withdraw Button (Opens External Website) -->
+          <button id="withdrawRevenueBtn" type="button" class="verify-btn eligible" style="margin-top:20px;width:100%;font-size:1rem;padding:15px;">
+            <i class="fas fa-external-link-alt"></i> Redeem Rewards
+          </button>
+        </div>
           <div style="background:#f7fcff;border-radius:14px;padding:14px;margin-bottom:14px;border:1px solid #d9ecf5;">
             <div style="font-size:0.8rem;font-weight:800;color:#0b4a5e;margin-bottom:10px;">
               <i class="fas fa-chart-pie"></i> Rewards Breakdown
