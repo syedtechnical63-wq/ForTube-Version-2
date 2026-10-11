@@ -6,14 +6,11 @@
   <meta name="description" content="ForTube - Watch, share and upload videos. Create your channel and connect with viewers.">
   <meta name="robots" content="index, follow">
   <title>ForTube - Video Sharing Platform</title>
-  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ccircle cx='50' cy='50' r='45' fill='%23156b3c'/%3E%3Cpolygon points='40,30 40,70 70,50' fill='white'/%3E%3C/svg%3E">
+  <link rel="icon" type="image/png" href="ForTube_icon_512px_under_500KB.png">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
   <link rel="stylesheet" href="style.css">
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="https://download.agora.io/sdk/release/AgoraRTC_N-4.20.0.js"></script>
-  <link rel="icon" type="image/png" href="<link rel="icon" type="image/png" href="ForTube_icon_512px_under_500KB.png">
-<!-- Website Keywords -->
-<meta name="keywords" content="ForTube, earning plateform, real platform, video sharing website, watch videos online, upload videos, short videos, video platform, ForTube, online video sharing, YouTube">
 </head>
 <body>
   <div class="app" id="app">
@@ -194,7 +191,7 @@
       </div>
     </div>
 
-    <!-- LIVE STREAMING PAGE (Broadcaster) -->
+    <!-- LIVE STREAMING PAGE -->
     <div class="live-stream-page" id="liveStreamPage">
       <div class="live-stream-header">
         <div class="live-badge-animated"><span class="live-dot"></span> LIVE</div>
@@ -213,7 +210,7 @@
       </div>
     </div>
 
-    <!-- LIVE WATCH PAGE (Viewer) -->
+    <!-- LIVE WATCH PAGE -->
     <div class="live-watch-page" id="liveWatchPage">
       <div class="watch-header">
         <button class="back-btn" id="liveWatchBackBtn"><i class="fas fa-arrow-left"></i></button>
@@ -271,15 +268,13 @@
       </div>
     </div>
 
-    <!-- PROFILE PANEL (NEW - YouTube Channel Style) -->
+    <!-- PROFILE PANEL -->
     <div class="profile-panel" id="profilePanel">
       <div class="profile-header-bar">
         <button class="back-btn" id="profileBackBtn"><i class="fas fa-arrow-left"></i></button>
         <h3>Your Channel</h3>
       </div>
-      <div class="profile-body" id="profileBody">
-        <!-- Content rendered by JS -->
-      </div>
+      <div class="profile-body" id="profileBody"></div>
     </div>
 
     <!-- SUBSCRIPTIONS PAGE -->
@@ -404,7 +399,7 @@
           <button class="verify-btn" id="verifyBtn" disabled>Not Eligible Yet</button>
         </div>
 
-        <!-- APPLY FORM (Only Email Required) -->
+        <!-- APPLY FORM -->
         <div class="criteria-card" id="monetizationApplyPage" style="display:none;">
           <h2>Apply for Creator Rewards</h2>
           <div class="criteria-sub">Your channel is eligible. Submit your application.</div>
@@ -416,8 +411,7 @@
           <div id="applicationStatus" style="display:none;margin-top:15px;padding:15px;border-radius:15px;text-align:center;font-weight:700;"></div>
         </div>
 
-        <!-- 📊 REWARDS DASHBOARD -->
-        <!-- 📊 REVENUE + ANALYTICS DASHBOARD -->
+        <!-- REVENUE + ANALYTICS DASHBOARD -->
         <div class="criteria-card" id="monetizationRevenuePage" style="display:none;">
           <h2>💰 Creator Dashboard</h2>
           
@@ -428,28 +422,24 @@
           </div>
 
           <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin:20px 0;">
-            
             <div style="background:linear-gradient(135deg,#e8f5ee,#d6efe0);border-radius:14px;padding:14px 8px;text-align:center;border:1.5px solid #b9e0cf;">
               <i class="fas fa-eye" style="font-size:1.5rem;color:#1e8b4b;"></i>
               <div style="font-size:1.4rem;font-weight:900;color:#0b4a5e;margin-top:8px;" id="analyticsViews">0</div>
               <div style="font-size:0.6rem;color:#4d7e8c;font-weight:700;letter-spacing:0.5px;">VIEWS</div>
             </div>
-
             <div style="background:linear-gradient(135deg,#e1f0fa,#d0e8f5);border-radius:14px;padding:14px 8px;text-align:center;border:1.5px solid #a8d4e8;">
               <i class="fas fa-clock" style="font-size:1.5rem;color:#1c7aa3;"></i>
               <div style="font-size:1.4rem;font-weight:900;color:#0b4a5e;margin-top:8px;" id="analyticsWatchTime">0</div>
               <div style="font-size:0.6rem;color:#4d7e8c;font-weight:700;letter-spacing:0.5px;">WATCH HRS</div>
             </div>
-
             <div style="background:linear-gradient(135deg,#fff4e0,#ffe0b8);border-radius:14px;padding:14px 8px;text-align:center;border:1.5px solid #ffd699;">
               <i class="fas fa-users" style="font-size:1.5rem;color:#d97706;"></i>
               <div style="font-size:1.4rem;font-weight:900;color:#0b4a5e;margin-top:8px;" id="analyticsSubs">0</div>
               <div style="font-size:0.6rem;color:#4d7e8c;font-weight:700;letter-spacing:0.5px;">SUBS</div>
             </div>
-
           </div>
 
-          <!-- 📈 ANALYTICS GRAPH -->
+          <!-- GRAPH -->
           <div style="background:white;border-radius:14px;padding:14px;margin-bottom:14px;border:1px solid #d9ecf5;">
             <div style="font-size:0.8rem;font-weight:800;color:#0b4a5e;margin-bottom:10px;">
               <i class="fas fa-chart-line"></i> Last 7 Days Growth
@@ -468,7 +458,7 @@
             </div>
           </div>
 
-          <!-- 💰 Revenue Breakdown -->
+          <!-- BREAKDOWN -->
           <div style="background:#f7fcff;border-radius:14px;padding:14px;margin-bottom:14px;border:1px solid #d9ecf5;">
             <div style="font-size:0.8rem;font-weight:800;color:#0b4a5e;margin-bottom:10px;">
               <i class="fas fa-chart-pie"></i> Rewards Breakdown
@@ -487,14 +477,14 @@
             </div>
           </div>
 
-          <!-- Qualified Views -->
+          <!-- QUALIFIED VIEWS -->
           <div class="criteria-item">
             <div class="ci-icon"><i class="fas fa-eye"></i></div>
             <div class="ci-text"><h4>Qualified Views</h4><p>From other users</p></div>
             <span class="ci-progress" id="qualifiedViewsRevenue">0</span>
           </div>
 
-          <!-- 🎯 WITHDRAWAL INPUT SECTION -->
+          <!-- WITHDRAWAL INPUT SECTION -->
           <div class="withdraw-input-section">
             <div class="wis-balance">
               <span class="wis-balance-label">Available Balance</span>
@@ -520,6 +510,34 @@
             
             <div id="withdrawError" class="wis-error" style="display:none;"></div>
           </div>
+
+          <!-- SIRF 1 REDEEM BUTTON -->
+          <button id="withdrawRevenueBtn" type="button" class="verify-btn eligible" style="margin-top:20px;width:100%;font-size:1rem;padding:15px;">
+            <i class="fas fa-external-link-alt"></i> Redeem Rewards
+          </button>
+        </div>
+
+      </div>
+    </div>
+
+    <!-- WATCH PAGE -->
+    <div class="watch-page" id="watchPage">
+      <div class="watch-header">
+        <button class="back-btn" id="watchBackBtn"><i class="fas fa-arrow-left"></i></button>
+        <h3 id="watchHeaderTitle">Now watching</h3>
+      </div>
+      <div class="watch-body" id="watchBody"></div>
+    </div>
+
+    <!-- CHANNEL VIEW PAGE -->
+    <div class="channel-view-page" id="channelViewPage">
+      <div class="channel-view-header">
+        <button class="back-btn" id="channelViewBackBtn"><i class="fas fa-arrow-left"></i></button>
+        <h3 id="channelViewHeaderTitle">Channel</h3>
+      </div>
+      <div class="channel-view-body" id="channelViewBody"></div>
+    </div>
+
     <!-- CHANNEL SETUP -->
     <div class="channel-setup-page" id="channelSetupPage">
       <div class="channel-setup-header">
@@ -990,11 +1008,11 @@
       <div class="terms-body">
         <div class="terms-section">
           <h2>1. Acceptance of Terms</h2>
-          <p>By using ForTube, you agree to these Terms of Service. If you do not agree, please do not use our platform. We may update these terms from time to time, and continued use means you accept any changes.</p>
+          <p>By using ForTube, you agree to these Terms of Service. If you do not agree, please do not use our platform.</p>
         </div>
         <div class="terms-section">
           <h2>2. User Accounts</h2>
-          <p>You are responsible for maintaining the confidentiality of your account credentials. You must be at least 13 years old to use ForTube. You agree to provide accurate information and to keep your account secure.</p>
+          <p>You are responsible for maintaining the confidentiality of your account credentials. You must be at least 13 years old to use ForTube.</p>
         </div>
         <div class="terms-section">
           <h2>3. Content Guidelines</h2>
@@ -1009,7 +1027,7 @@
         </div>
         <div class="terms-section">
           <h2>4. Content Ownership</h2>
-          <p>You retain ownership of videos you upload. By uploading, you grant ForTube a license to display, distribute, and promote your content on the platform. You confirm you have rights to all uploaded content.</p>
+          <p>You retain ownership of videos you upload. By uploading, you grant ForTube a license to display, distribute, and promote your content.</p>
         </div>
         <div class="terms-section">
           <h2>5. Privacy Policy</h2>
@@ -1020,23 +1038,23 @@
             <li>Videos you upload</li>
             <li>Basic usage analytics</li>
           </ul>
-          <p>We do not sell your personal information to third parties. Your data is stored securely using Supabase infrastructure.</p>
+          <p>We do not sell your personal information to third parties.</p>
         </div>
         <div class="terms-section">
           <h2>6. Creator Rewards</h2>
-          <p>To be eligible for Creator Rewards, you must meet our criteria: 1,000 views, 4,000 watch hours, and 1,000 subscribers. <strong>Rewards are calculated at $1 per 500 subscribers and $0.50 per 1,000 watch hours.</strong> Redemptions are subject to review. Minimum redemption amount is $1.00.</p>
+          <p>To be eligible for Creator Rewards, you must meet our criteria: 1,000 views, 4,000 watch hours, and 1,000 subscribers. Rewards are calculated at $1 per 500 subscribers and $0.50 per 1,000 watch hours.</p>
         </div>
         <div class="terms-section">
           <h2>7. Content Moderation</h2>
-          <p>We reserve the right to remove any content that violates these terms. Accounts that repeatedly violate guidelines may be suspended or terminated without notice.</p>
+          <p>We reserve the right to remove any content that violates these terms.</p>
         </div>
         <div class="terms-section">
           <h2>8. Termination</h2>
-          <p>You may delete your account at any time. We may terminate accounts that violate our terms. Upon termination, your videos will be removed from public view.</p>
+          <p>You may delete your account at any time. We may terminate accounts that violate our terms.</p>
         </div>
         <div class="terms-section">
           <h2>9. Disclaimer</h2>
-          <p>ForTube is provided "as is" without warranties. We are not liable for any content uploaded by users or any damages arising from platform use.</p>
+          <p>ForTube is provided "as is" without warranties.</p>
         </div>
         <div class="terms-section">
           <h2>10. Contact</h2>
