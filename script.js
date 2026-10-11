@@ -1,16 +1,16 @@
 /* ============================================================
-   FORTUBE v16 - FINAL (Google-Safe + YouTube-Style Profile)
+   FORTUBE v17 - FINAL (Sab Fixed + Related Videos)
    ============================================================ */
 
 const SUPABASE_URL = "https://eaxstlpltwgpmaupgcwq.supabase.co";
 const SUPABASE_KEY = "sb_publishable_sfcTaBDwgGM8ccmMfwP_ig_A6jTZ8w7";
 const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_KEY, {
   auth: {
-    persistSession: true,           // ✅ Session browser mein save rakhega
-    autoRefreshToken: true,         // ✅ Token automatically refresh karega
-    detectSessionInUrl: true,       // ✅ Magic link / OAuth handle karega
-    storage: window.localStorage,   // ✅ localStorage use karega (permanent)
-    storageKey: 'fortube_auth_token', // ✅ Custom key
+    persistSession: true,
+    autoRefreshToken: true,
+    detectSessionInUrl: true,
+    storage: window.localStorage,
+    storageKey: 'fortube_auth_token',
     flowType: 'pkce'
   }
 });
@@ -19,14 +19,15 @@ const AGORA_APP_ID = "e84b0914baa44e8c878fb68ade1d804e";
 const ADMIN_EMAILS = ["syedtechnical63@gmail.com"];
 
 // ============================================================
-// 🌐 REDEEM EXTERNAL URL - YAHAN APNA LINK ADD KAREIN
+// 🌐 REDEEM EXTERNAL URL
 // ============================================================
-const WITHDRAW_URL = "https://syedtechnical63-wq.github.io/withdrawal/"; // ← YAHAN APNA LINK LIKHEIN
+const WITHDRAW_URL = "https://syedtechnical63-wq.github.io/withdrawal/";
 
 // 💰 REWARDS RATES
 const REVENUE_PER_500_SUBS = 1.00;
 const REVENUE_PER_1000_HOURS = 0.50;
-const MIN_WITHDRAWAL = 1.00;
+const MIN_WITHDRAWAL = 10.00;
+const MIN_WITHDRAW_AMOUNT = 10.00;
 
 // ==================== INDEXEDDB ====================
 const IDB_NAME = 'fortube_videos_db';
@@ -137,7 +138,6 @@ const searchBtn = $('searchBtn');
 const micBtn = $('micBtn');
 const profilePanel = $('profilePanel');
 const profileBackBtn = $('profileBackBtn');
-const profileBody = $('profileBody') || null;
 const monetizationPage = $('monetizationPage');
 const monetizationBackBtn = $('monetizationBackBtn');
 const verifyBtn = $('verifyBtn');
@@ -146,7 +146,6 @@ const check1 = $('check1'), check2 = $('check2'), check3 = $('check3');
 const viewsProgress = $('viewsProgress');
 const watchProgress = $('watchProgress');
 const subsProgress = $('subsProgress');
-const criteriaSub = $('criteriaSub');
 const eligibilityCard = $('eligibilityCard');
 const monetizationApplyPage = $('monetizationApplyPage');
 const monetizationRevenuePage = $('monetizationRevenuePage');
@@ -268,7 +267,6 @@ const notificationsBody = $('notificationsBody');
 const subscriptionsPage = $('subscriptionsPage');
 const subsBackBtn = $('subsBackBtn');
 const subscriptionsBody = $('subscriptionsBody');
-
 const videoActionsOverlay = $('videoActionsOverlay');
 const videoActionsMenu = $('videoActionsMenu');
 const vaThumb = $('vaThumb');
@@ -278,7 +276,6 @@ const vaPrivacySub = $('vaPrivacySub');
 const vaEditBtn = $('vaEditBtn');
 const vaPrivacyBtn = $('vaPrivacyBtn');
 const vaDeleteBtn = $('vaDeleteBtn');
-
 const editVideoPage = $('editVideoPage');
 const editVideoBackBtn = $('editVideoBackBtn');
 const editVideoThumb = $('editVideoThumb');
@@ -288,7 +285,6 @@ const editVideoDesc = $('editVideoDesc');
 const editVideoCategory = $('editVideoCategory');
 const editVideoCancelBtn = $('editVideoCancelBtn');
 const editVideoSaveBtn = $('editVideoSaveBtn');
-
 const termsPage = $('termsPage');
 const termsBackBtn = $('termsBackBtn');
 const supportPage = $('supportPage');
@@ -296,7 +292,6 @@ const supportBackBtn = $('supportBackBtn');
 const supportBody = $('supportBody');
 const supportInput = $('supportInput');
 const supportSendBtn = $('supportSendBtn');
-
 const liveSetupModal = $('liveSetupModal');
 const liveSetupBackBtn = $('liveSetupBackBtn');
 const liveSetupCancelBtn = $('liveSetupCancelBtn');
@@ -1358,6 +1353,15 @@ async function openWatchPage(vid) {
         <button class="action-btn" id="saveBtn"><i class="fas fa-bookmark"></i> Save</button>
       </div>
       <div class="watch-desc">${escapeHTML(vid.description || 'No description.')}</div>
+      
+      <!-- ✅ RELATED VIDEOS SECTION -->
+      <div class="related-videos-section">
+        <div class="related-title"><i class="fas fa-list"></i> Related Videos</div>
+        <div class="related-videos-list" id="relatedVideosList">
+          <div style="text-align:center;padding:20px;color:#8aa9b8;font-size:0.8rem;">Loading...</div>
+        </div>
+      </div>
+      
       <div class="comments-section">
         <div class="comments-title"><i class="fas fa-comments"></i> Comments (<span id="commentCount">0</span>)</div>
         <div class="comment-input-row">
@@ -1499,7 +1503,91 @@ async function openWatchPage(vid) {
     if (e.key === 'Enter') document.getElementById('commentSendBtn')?.click();
   });
 
+  // ✅ LOAD RELATED VIDEOS
+  await loadRelatedVideos(vid);
+  
   watchPage.classList.add('open');
+}
+
+// ✅ LOAD RELATED VIDEOS
+async function loadRelatedVideos(currentVid) {
+  const listEl = document.getElementById('relatedVideosList');
+  if (!listEl) return;
+  
+  try {
+    let related = state.allVideos.filter(v => 
+      v.id !== currentVid.id && 
+      v.type !== 'short' && 
+      !v.is_live
+    );
+    
+    const sameCategory = related.filter(v => v.category === currentVid.category);
+    const sameChannel = related.filter(v => v.channel_username === currentVid.channel_username);
+    const trending = [...related].sort((a, b) => (b.views || 0) - (a.views || 0));
+    
+    const combined = [...sameCategory, ...sameChannel, ...trending];
+    const unique = [];
+    const seen = new Set();
+    
+    for (const v of combined) {
+      if (!seen.has(v.id) && v.id !== currentVid.id) {
+        seen.add(v.id);
+        unique.push(v);
+        if (unique.length >= 10) break;
+      }
+    }
+    
+    if (unique.length === 0) {
+      listEl.innerHTML = '<div style="text-align:center;padding:20px;color:#8aa9b8;font-size:0.8rem;">No related videos</div>';
+      return;
+    }
+    
+    listEl.innerHTML = unique.map(v => {
+      const ch = state.allChannels.find(c => c.username === v.channel_username) || {};
+      const thumbHTML = v.thumbnail_url
+        ? `<img src="${v.thumbnail_url}" style="width:100%;height:100%;object-fit:cover;">`
+        : `<i class="fas fa-play-circle"></i>`;
+      const chAvatarHTML = ch.avatar_url
+        ? `<img src="${ch.avatar_url}" style="width:100%;height:100%;object-fit:cover;">`
+        : (ch.avatar_emoji || '👤');
+      
+      return `
+        <div class="related-video-card" data-related-id="${v.id}">
+          <div class="related-thumb">
+            ${thumbHTML}
+            <span class="duration-badge">${v.duration || '0:00'}</span>
+          </div>
+          <div class="related-info">
+            <div class="related-video-title">${escapeHTML(v.title)}</div>
+            <div class="related-channel">
+              <span class="related-ch-icon">${chAvatarHTML}</span>
+              ${escapeHTML(ch.name || v.channel_name || 'Unknown')}
+            </div>
+            <div class="related-stats">
+              <i class="fas fa-eye"></i> ${formatViews(v.views || 0)} · ${formatDate(v.created_at)}
+            </div>
+          </div>
+        </div>
+      `;
+    }).join('');
+    
+    listEl.querySelectorAll('[data-related-id]').forEach(card => {
+      card.addEventListener('click', () => {
+        const vid = state.allVideos.find(v => v.id === card.dataset.relatedId);
+        if (vid) {
+          watchPage.classList.remove('open');
+          setTimeout(() => {
+            openWatchPage(vid);
+            const wb = document.getElementById('watchBody');
+            if (wb) wb.scrollTop = 0;
+          }, 300);
+        }
+      });
+    });
+    
+  } catch (e) {
+    listEl.innerHTML = '<div style="text-align:center;padding:20px;color:#8aa9b8;font-size:0.8rem;">Failed to load</div>';
+  }
 }
 
 async function addWatchTime(videoId, seconds) {
@@ -1784,8 +1872,8 @@ if (supportBackBtn) supportBackBtn.addEventListener('click', () => supportPage.c
 const BOT_RESPONSES = {
   'upload': '📹 To upload a video:\n1. Tap the + button\n2. Choose "Upload Video" or "Upload Short"\n3. Record or pick from gallery\n4. Fill in title, description, thumbnail\n5. Tap Publish',
   'go live': '🔴 To go live:\n1. You need 50+ subscribers\n2. Tap + → Go Live\n3. Fill title, description, tags\n4. Tap "Start Live"',
-  'monetization': '💰 Creator Rewards:\n• $1 per 500 subscribers\n• $0.50 per 1000 watch hours\n\nMinimum redemption: $1.00',
-  'creator rewards': '💰 Creator Rewards:\n• $1 per 500 subscribers\n• $0.50 per 1000 watch hours\n\nMinimum redemption: $1.00',
+  'monetization': '💰 Creator Rewards:\n• $1 per 500 subscribers\n• $0.50 per 1000 watch hours\n\nMinimum redemption: $10.00',
+  'creator rewards': '💰 Creator Rewards:\n• $1 per 500 subscribers\n• $0.50 per 1000 watch hours\n\nMinimum redemption: $10.00',
   'video not playing': '🎬 If video is not playing:\n1. Check internet\n2. Refresh the page\n3. Clear cache in Settings',
   'hello': 'Hi there! 👋 How can I help you today?',
   'hi': 'Hello! 👋 How can I help you today?',
@@ -3373,7 +3461,7 @@ function renderNotifications() {
 }
 
 // ============================================================
-// 👤 PROFILE / UI - YouTube Channel Style
+// 👤 PROFILE / UI
 // ============================================================
 function updateUI() {
   if (state.loggedIn) {
@@ -3384,6 +3472,7 @@ function updateUI() {
 
   updateMonetizationUI();
   renderProfilePage();
+  updateRevenueDisplay();
 }
 
 async function renderProfilePage() {
@@ -3539,6 +3628,7 @@ async function renderProfilePage() {
   document.getElementById('openMonetizationBtn')?.addEventListener('click', () => {
     monetizationPage.classList.add('open');
     updateMonetizationUI();
+    setTimeout(() => updateRevenueDisplay(), 500);
   });
 
   body.querySelectorAll('[data-pvid]').forEach(card => {
@@ -3725,6 +3815,167 @@ function updateAnalyticsDisplay(views, watchHours, subs, revenue) {
 }
 
 // ============================================================
+// 💰 WITHDRAW WITH AMOUNT INPUT
+// ============================================================
+
+async function getUserRevenue() {
+  if (!state.channel) return 0;
+  try {
+    const { data } = await supabaseClient
+      .from('channels')
+      .select('revenue')
+      .eq('id', state.channel.id)
+      .maybeSingle();
+    return data ? parseFloat(data.revenue || 0) : 0;
+  } catch (e) {
+    console.error('Revenue fetch error:', e);
+    return 0;
+  }
+}
+
+async function updateRevenueDisplay() {
+  if (!state.channel) return 0;
+  
+  const revenue = await getUserRevenue();
+  
+  const totalRevenueEl = document.getElementById('totalRevenue');
+  if (totalRevenueEl) totalRevenueEl.textContent = revenue.toFixed(2);
+  
+  const currentRevEl = document.getElementById('currentRevenue');
+  if (currentRevEl) currentRevEl.textContent = revenue.toFixed(2);
+  
+  const amountInput = document.getElementById('withdrawAmountInput');
+  if (amountInput) amountInput.max = revenue.toFixed(2);
+  
+  const revenueFromSubs = document.getElementById('revenueFromSubs');
+  if (revenueFromSubs) revenueFromSubs.textContent = '$' + revenue.toFixed(2);
+  
+  const totalRevenueBreakdown = document.getElementById('totalRevenueBreakdown');
+  if (totalRevenueBreakdown) totalRevenueBreakdown.textContent = '$' + revenue.toFixed(2);
+  
+  return revenue;
+}
+
+function showWithdrawError(msg) {
+  const errorEl = document.getElementById('withdrawError');
+  if (errorEl) {
+    errorEl.textContent = msg;
+    errorEl.style.display = 'block';
+    setTimeout(() => { errorEl.style.display = 'none'; }, 4000);
+  }
+  showToast('❌ ' + msg);
+}
+
+function clearWithdrawError() {
+  const errorEl = document.getElementById('withdrawError');
+  if (errorEl) errorEl.style.display = 'none';
+}
+
+async function processWithdraw() {
+  if (!state.user) { showToast('Login required'); return; }
+  if (!state.channel) { showToast('Create channel first'); return; }
+  
+  const amountInput = document.getElementById('withdrawAmountInput');
+  if (!amountInput) { showToast('Input not found'); return; }
+  
+  const amount = parseFloat(amountInput.value || 0);
+  
+  if (!amount || amount <= 0) { showWithdrawError('Please enter an amount'); return; }
+  if (amount < MIN_WITHDRAW_AMOUNT) { showWithdrawError(`Minimum withdrawal is $${MIN_WITHDRAW_AMOUNT.toFixed(2)}`); return; }
+  
+  const currentRevenue = await getUserRevenue();
+  
+  if (amount > currentRevenue) {
+    showWithdrawError(`Insufficient balance. Available: $${currentRevenue.toFixed(2)}`);
+    return;
+  }
+  
+  const confirmed = confirm(
+    `Confirm Withdrawal\n\n` +
+    `Amount: $${amount.toFixed(2)}\n` +
+    `Remaining Balance: $${(currentRevenue - amount).toFixed(2)}\n\n` +
+    `You will be redirected to complete your withdrawal.`
+  );
+  
+  if (!confirmed) return;
+  
+  const btn = document.getElementById('withdrawRevenueBtn');
+  if (btn) {
+    btn.disabled = true;
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Processing...';
+  }
+  
+  try {
+    const newBalance = currentRevenue - amount;
+    
+    const { error } = await supabaseClient
+      .from('channels')
+      .update({ revenue: newBalance })
+      .eq('id', state.channel.id);
+    
+    if (error) throw error;
+    
+    state.channel.revenue = newBalance;
+    await updateRevenueDisplay();
+    
+    await createNotification(
+      state.user.id,
+      `💰 Withdrawal of $${amount.toFixed(2)} submitted. Remaining: $${newBalance.toFixed(2)}`,
+      'withdraw'
+    );
+    
+    amountInput.value = '';
+    showToast(`✅ Withdrawal of $${amount.toFixed(2)} initiated!`);
+    
+    const params = new URLSearchParams({
+      user_id: state.user.id,
+      email: state.email,
+      channel_id: state.channel.id,
+      channel_name: state.channel.name,
+      username: state.channel.username,
+      amount: amount.toFixed(2),
+      remaining_balance: newBalance.toFixed(2),
+      currency: 'USD'
+    });
+    
+    setTimeout(() => {
+      window.open(`${WITHDRAW_URL}?${params.toString()}`, '_blank');
+    }, 800);
+    
+  } catch (err) {
+    showToast('❌ ' + err.message);
+    await updateRevenueDisplay();
+  }
+  
+  if (btn) {
+    btn.disabled = false;
+    btn.innerHTML = '<i class="fas fa-external-link-alt"></i> Redeem Rewards';
+  }
+}
+
+// Hooks
+document.addEventListener('click', (e) => {
+  if (e.target.closest('#withdrawRevenueBtn')) {
+    e.preventDefault();
+    processWithdraw();
+  }
+});
+
+document.addEventListener('input', (e) => {
+  if (e.target.id === 'withdrawAmountInput') clearWithdrawError();
+});
+
+document.addEventListener('keydown', (e) => {
+  if (e.target.id === 'withdrawAmountInput' && e.key === 'Enter') processWithdraw();
+});
+
+document.addEventListener('click', (e) => {
+  if (e.target.closest('#openMonetizationBtn') || e.target.closest('.monetization-card')) {
+    setTimeout(async () => { await updateRevenueDisplay(); }, 500);
+  }
+});
+
+// ============================================================
 // CREATOR REWARDS CLICK
 // ============================================================
 document.addEventListener('click', async (e) => {
@@ -3750,6 +4001,7 @@ document.addEventListener('click', async (e) => {
       monetizationApplyPage.style.display = 'none';
       monetizationRevenuePage.style.display = 'block';
       await updateMonetizationUI();
+      await updateRevenueDisplay();
     } else {
       eligibilityCard.style.display = 'block';
       monetizationApplyPage.style.display = 'none';
@@ -3781,6 +4033,7 @@ if (verifyBtn) {
       monetizationApplyPage.style.display = 'none';
       monetizationRevenuePage.style.display = 'block';
       await updateMonetizationUI();
+      await updateRevenueDisplay();
     } else {
       eligibilityCard.style.display = 'none';
       monetizationApplyPage.style.display = 'block';
@@ -3825,6 +4078,7 @@ if (submitMonetizationApplication) {
           eligibilityCard.style.display = 'none';
           monetizationRevenuePage.style.display = 'block';
           updateMonetizationUI();
+          updateRevenueDisplay();
         }, 1500);
       } else {
         applicationStatus.textContent = '✅ Application submitted! We will review within 48 hours.';
@@ -3836,16 +4090,6 @@ if (submitMonetizationApplication) {
 
     submitMonetizationApplication.disabled = false;
     submitMonetizationApplication.innerHTML = '<i class="fas fa-paper-plane"></i> Submit Application';
-  });
-}
-
-// ============================================================
-// REDEEM BUTTON - Opens External Website
-// ============================================================
-if (withdrawRevenueBtn) {
-  withdrawRevenueBtn.addEventListener('click', () => {
-    window.open(WITHDRAW_URL, '_blank');
-    showToast('🌐 Opening redeem page...');
   });
 }
 
@@ -4004,185 +4248,5 @@ setInterval(() => {
   if (state.loggedIn && watchPage && !watchPage.classList.contains('open') && !liveWatchPage.classList.contains('open')) {
     loadFeedFromSupabase();
     loadNotifications();
-  }
-}, 30000);
-// ============================================================
-// 💰 WITHDRAW WITH AMOUNT INPUT (Minimum $10)
-// ============================================================
-
-const MIN_WITHDRAW_AMOUNT = 10.00;
-
-async function getUserRevenue() {
-  if (!state.channel) return 0;
-  try {
-    const { data } = await supabaseClient
-      .from('channels')
-      .select('revenue')
-      .eq('id', state.channel.id)
-      .maybeSingle();
-    return data ? parseFloat(data.revenue || 0) : 0;
-  } catch (e) {
-    console.error('Revenue fetch error:', e);
-    return 0;
-  }
-}
-
-async function updateRevenueDisplay() {
-  if (!state.channel) return 0;
-  
-  const revenue = await getUserRevenue();
-  
-  const totalRevenueEl = document.getElementById('totalRevenue');
-  if (totalRevenueEl) totalRevenueEl.textContent = revenue.toFixed(2);
-  
-  const currentRevEl = document.getElementById('currentRevenue');
-  if (currentRevEl) currentRevEl.textContent = revenue.toFixed(2);
-  
-  const amountInput = document.getElementById('withdrawAmountInput');
-  if (amountInput) amountInput.max = revenue.toFixed(2);
-  
-  const revenueFromSubs = document.getElementById('revenueFromSubs');
-  if (revenueFromSubs) revenueFromSubs.textContent = '$' + revenue.toFixed(2);
-  
-  const totalRevenueBreakdown = document.getElementById('totalRevenueBreakdown');
-  if (totalRevenueBreakdown) totalRevenueBreakdown.textContent = '$' + revenue.toFixed(2);
-  
-  return revenue;
-}
-
-function showWithdrawError(msg) {
-  const errorEl = document.getElementById('withdrawError');
-  if (errorEl) {
-    errorEl.textContent = msg;
-    errorEl.style.display = 'block';
-    setTimeout(() => { errorEl.style.display = 'none'; }, 4000);
-  }
-  showToast('❌ ' + msg);
-}
-
-function clearWithdrawError() {
-  const errorEl = document.getElementById('withdrawError');
-  if (errorEl) errorEl.style.display = 'none';
-}
-
-async function processWithdraw() {
-  if (!state.user) { showToast('Login required'); return; }
-  if (!state.channel) { showToast('Create channel first'); return; }
-  
-  const amountInput = document.getElementById('withdrawAmountInput');
-  if (!amountInput) { showToast('Input not found'); return; }
-  
-  const amount = parseFloat(amountInput.value || 0);
-  
-  if (!amount || amount <= 0) { showWithdrawError('Please enter an amount'); return; }
-  if (amount < MIN_WITHDRAW_AMOUNT) { showWithdrawError(`Minimum withdrawal is $${MIN_WITHDRAW_AMOUNT.toFixed(2)}`); return; }
-  
-  const currentRevenue = await getUserRevenue();
-  
-  if (amount > currentRevenue) {
-    showWithdrawError(`Insufficient balance. Available: $${currentRevenue.toFixed(2)}`);
-    return;
-  }
-  
-  const confirmed = confirm(
-    `Confirm Withdrawal\n\n` +
-    `Amount: $${amount.toFixed(2)}\n` +
-    `Remaining Balance: $${(currentRevenue - amount).toFixed(2)}\n\n` +
-    `You will be redirected to complete your withdrawal.`
-  );
-  
-  if (!confirmed) return;
-  
-  const btn = document.getElementById('withdrawRevenueBtn');
-  if (btn) {
-    btn.disabled = true;
-    btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Processing...';
-  }
-  
-  try {
-    const newBalance = currentRevenue - amount;
-    
-    const { error } = await supabaseClient
-      .from('channels')
-      .update({ revenue: newBalance })
-      .eq('id', state.channel.id);
-    
-    if (error) throw error;
-    
-    state.channel.revenue = newBalance;
-    await updateRevenueDisplay();
-    
-    await createNotification(
-      state.user.id,
-      `💰 Withdrawal of $${amount.toFixed(2)} submitted. Remaining: $${newBalance.toFixed(2)}`,
-      'withdraw'
-    );
-    
-    amountInput.value = '';
-    showToast(`✅ Withdrawal of $${amount.toFixed(2)} initiated!`);
-    
-    // ⚠️ APNI WITHDRAW SITE KA LINK YAHAN DAALEIN 👇
-    const WITHDRAW_SITE = "https://your-withdraw-website.com";
-    
-    const params = new URLSearchParams({
-      user_id: state.user.id,
-      email: state.email,
-      channel_id: state.channel.id,
-      channel_name: state.channel.name,
-      username: state.channel.username,
-      amount: amount.toFixed(2),
-      remaining_balance: newBalance.toFixed(2),
-      currency: 'USD'
-    });
-    
-    setTimeout(() => {
-      window.open(`${WITHDRAW_SITE}?${params.toString()}`, '_blank');
-    }, 800);
-    
-  } catch (err) {
-    showToast('❌ ' + err.message);
-    await updateRevenueDisplay();
-  }
-  
-  if (btn) {
-    btn.disabled = false;
-    btn.innerHTML = '<i class="fas fa-external-link-alt"></i> Redeem Rewards';
-  }
-}
-
-// Hooks
-document.addEventListener('click', (e) => {
-  if (e.target.closest('#withdrawRevenueBtn')) {
-    e.preventDefault();
-    processWithdraw();
-  }
-});
-
-document.addEventListener('input', (e) => {
-  if (e.target.id === 'withdrawAmountInput') clearWithdrawError();
-});
-
-document.addEventListener('keydown', (e) => {
-  if (e.target.id === 'withdrawAmountInput' && e.key === 'Enter') processWithdraw();
-});
-
-document.addEventListener('click', (e) => {
-  if (e.target.closest('#openMonetizationBtn') || e.target.closest('.monetization-card')) {
-    setTimeout(async () => { await updateRevenueDisplay(); }, 500);
-  }
-});
-
-const _origUpdateUI = updateUI;
-updateUI = function() {
-  _origUpdateUI();
-  setTimeout(async () => {
-    if (state.channel) await updateRevenueDisplay();
-  }, 300);
-};
-
-setInterval(() => {
-  if (state.loggedIn && state.channel) {
-    const page = document.getElementById('monetizationPage');
-    if (page && page.classList.contains('open')) updateRevenueDisplay();
   }
 }, 30000);
