@@ -3,10 +3,8 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-  <meta name="description" content="ForTube - Watch, share and upload videos. Create your channel and connect with viewers.">
-  <meta name="robots" content="index, follow">
+  <meta name="description" content="ForTube - Watch, share and upload videos.">
   <title>ForTube - Video Sharing Platform</title>
-  <link rel="icon" type="image/png" href="ForTube_icon_512px_under_500KB.png">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
   <link rel="stylesheet" href="style.css">
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
@@ -17,7 +15,11 @@
 
     <!-- LOGIN GATE -->
     <div class="login-gate" id="loginGate">
-      <div class="gate-logo"><i class="fas fa-play"></i></div>
+      <div class="gate-logo">
+        <div class="gate-logo-circle">
+          <div class="gate-logo-triangle"></div>
+        </div>
+      </div>
       <div class="gate-title">ForTube</div>
       <div class="gate-sub">Sign in to continue.<br>Create a channel and upload videos.</div>
       <div class="gate-form">
@@ -25,6 +27,10 @@
         <input type="email" id="gateEmail" placeholder="you@example.com" autocomplete="email">
         <label for="gatePassword">Password</label>
         <input type="password" id="gatePassword" placeholder="••••••••" autocomplete="current-password">
+        <div style="display:flex;align-items:center;gap:8px;margin-top:14px;font-size:0.75rem;color:#4d7e8c;">
+          <input type="checkbox" id="ageConfirm" style="width:auto;">
+          <label for="ageConfirm" style="margin:0;font-weight:500;cursor:pointer;">I am 13 years or older</label>
+        </div>
         <button class="gate-btn" id="gateLoginBtn"><i class="fas fa-sign-in-alt"></i> Login / Sign Up</button>
         <button type="button" id="forgotPasswordLink" style="background:none;border:none;color:#1d7e5c;font-size:0.78rem;font-weight:700;margin-top:12px;cursor:pointer;text-decoration:underline;width:100%;">Forgot Password?</button>
       </div>
@@ -38,11 +44,14 @@
           <span></span><span></span><span></span>
         </button>
         <div class="logo">
-          <div class="logo-icon"><i class="fas fa-play"></i></div>
+          <div class="logo-icon">
+            <div class="logo-icon-triangle"></div>
+          </div>
           <div class="logo-text">ForTube</div>
         </div>
       </div>
       <div class="header-actions">
+        <button class="icon-btn" id="darkModeBtn" title="Dark Mode"><i class="fas fa-moon"></i></button>
         <button class="icon-btn" id="settingsBtn" title="Settings"><i class="fas fa-cog"></i></button>
         <button class="icon-btn" id="notifBtn" title="Notifications">
           <i class="fas fa-bell"></i>
@@ -59,6 +68,12 @@
         <button class="mic-btn" id="micBtn" title="Voice search"><i class="fas fa-microphone"></i></button>
         <button class="search-btn" id="searchBtn" title="Search"><i class="fas fa-arrow-right"></i></button>
       </div>
+      <div class="search-filters" id="searchFilters" style="display:none;">
+        <button class="filter-chip active" data-sort="relevant">Relevant</button>
+        <button class="filter-chip" data-sort="views">Most Views</button>
+        <button class="filter-chip" data-sort="recent">Recent</button>
+        <button class="filter-chip" data-sort="likes">Most Liked</button>
+      </div>
     </div>
 
     <!-- FEED -->
@@ -71,7 +86,7 @@
       </div>
     </div>
 
-    <!-- SHORTS FEED (TikTok style) -->
+    <!-- SHORTS FEED -->
     <div class="shorts-feed" id="shortsFeed" style="display:none;"></div>
 
     <!-- BOTTOM NAV -->
@@ -139,13 +154,10 @@
               <span class="live-dot"></span> PREVIEW
             </div>
           </div>
-          
           <label class="metadata-label">Live Title *</label>
           <input type="text" id="liveTitle" class="metadata-input" placeholder="e.g. Live Gaming Session">
-          
           <label class="metadata-label">Description</label>
           <textarea id="liveDescription" class="metadata-textarea" placeholder="Tell viewers what you're streaming..."></textarea>
-          
           <label class="metadata-label">Category</label>
           <select id="liveCategory" class="metadata-select">
             <option value="Gaming">Gaming</option>
@@ -159,29 +171,16 @@
             <option value="Travel">Travel</option>
             <option value="Fitness">Fitness</option>
           </select>
-          
           <label class="metadata-label">Tags</label>
           <div class="tag-input-wrap">
             <input type="text" id="liveTagInput" class="metadata-input" placeholder="gaming, live">
             <button class="tag-add-btn" id="liveAddTagBtn"><i class="fas fa-plus"></i></button>
           </div>
           <div class="tags-container" id="liveTagsContainer"></div>
-          
           <label class="metadata-label">Visibility</label>
           <div class="visibility-row">
             <div class="visibility-option active" data-livevis="public"><i class="fas fa-globe"></i> Public</div>
             <div class="visibility-option" data-livevis="unlisted"><i class="fas fa-link"></i> Unlisted</div>
-          </div>
-
-          <div class="live-info-note">
-            <i class="fas fa-info-circle"></i>
-            <div>
-              <strong>Live Streaming Info:</strong><br>
-              • Your live stream will be visible to all users<br>
-              • Viewers can watch on any device<br>
-              • Views & watch time count towards monetization<br>
-              • Stream ends when you tap "End Live"
-            </div>
           </div>
         </div>
         <div class="publish-bar">
@@ -254,12 +253,15 @@
       </div>
       <div class="drawer-links">
         <div class="drawer-link" data-drawer="home"><i class="fas fa-home"></i> Home</div>
+        <div class="drawer-link" data-drawer="trending"><i class="fas fa-fire"></i> Trending</div>
         <div class="drawer-link" data-drawer="live"><i class="fas fa-broadcast-tower"></i> Live Now</div>
         <div class="drawer-link" data-drawer="gaming"><i class="fas fa-gamepad"></i> Gaming</div>
         <div class="drawer-link" data-drawer="sports"><i class="fas fa-futbol"></i> Sports</div>
         <div class="drawer-link" data-drawer="yourvideos"><i class="fas fa-video"></i> Your Videos</div>
         <div class="drawer-divider"></div>
-        <div class="drawer-link" data-drawer="trending"><i class="fas fa-fire"></i> Trending</div>
+        <div class="drawer-link" data-drawer="watchlater"><i class="fas fa-clock"></i> Watch Later</div>
+        <div class="drawer-link" data-drawer="playlists"><i class="fas fa-list"></i> Playlists</div>
+        <div class="drawer-divider"></div>
         <div class="drawer-link" data-drawer="music"><i class="fas fa-music"></i> Music</div>
         <div class="drawer-link" data-drawer="news"><i class="fas fa-newspaper"></i> News</div>
         <div class="drawer-divider"></div>
@@ -285,6 +287,29 @@
       </div>
       <div class="subscriptions-body" id="subscriptionsBody">
         <div class="no-subs">You haven't subscribed to any channel yet.</div>
+      </div>
+    </div>
+
+    <!-- WATCH LATER PAGE -->
+    <div class="watchlater-page" id="watchLaterPage">
+      <div class="profile-header-bar">
+        <button class="back-btn" id="watchLaterBackBtn"><i class="fas fa-arrow-left"></i></button>
+        <h3>Watch Later</h3>
+      </div>
+      <div class="watchlater-body" id="watchLaterBody">
+        <div class="no-subs">No videos saved for later.</div>
+      </div>
+    </div>
+
+    <!-- PLAYLISTS PAGE -->
+    <div class="playlists-page" id="playlistsPage">
+      <div class="profile-header-bar">
+        <button class="back-btn" id="playlistsBackBtn"><i class="fas fa-arrow-left"></i></button>
+        <h3>My Playlists</h3>
+        <button class="icon-btn" id="createPlaylistBtn" style="margin-left:auto;background:rgba(255,255,255,0.2);width:38px;height:38px;"><i class="fas fa-plus"></i></button>
+      </div>
+      <div class="playlists-body" id="playlistsBody">
+        <div class="no-subs">No playlists yet.</div>
       </div>
     </div>
 
@@ -330,9 +355,6 @@
           <option value="Urdu">Urdu</option>
           <option value="Hindi">Hindi</option>
           <option value="Arabic">Arabic</option>
-          <option value="Spanish">Spanish</option>
-          <option value="French">French</option>
-          <option value="German">German</option>
         </select>
         <label class="metadata-label" for="editCurrency">Currency</label>
         <select id="editCurrency" class="metadata-select">
@@ -340,8 +362,6 @@
           <option value="PKR">PKR — Pakistani Rupee</option>
           <option value="INR">INR — Indian Rupee</option>
           <option value="EUR">EUR — Euro</option>
-          <option value="GBP">GBP — British Pound</option>
-          <option value="AED">AED — UAE Dirham</option>
         </select>
         <label class="metadata-label" for="editRegion">Region / Country</label>
         <select id="editRegion" class="metadata-select">
@@ -350,8 +370,6 @@
           <option value="India">India</option>
           <option value="United States">United States</option>
           <option value="United Kingdom">United Kingdom</option>
-          <option value="UAE">UAE</option>
-          <option value="Saudi Arabia">Saudi Arabia</option>
         </select>
         <label class="metadata-label" for="editDesc">Channel description</label>
         <textarea id="editDesc" class="metadata-textarea" placeholder="Tell viewers about your channel..."></textarea>
@@ -411,7 +429,7 @@
           <div id="applicationStatus" style="display:none;margin-top:15px;padding:15px;border-radius:15px;text-align:center;font-weight:700;"></div>
         </div>
 
-        <!-- REVENUE + ANALYTICS DASHBOARD -->
+        <!-- REVENUE DASHBOARD -->
         <div class="criteria-card" id="monetizationRevenuePage" style="display:none;">
           <h2>💰 Creator Dashboard</h2>
           
@@ -439,26 +457,13 @@
             </div>
           </div>
 
-          <!-- GRAPH -->
           <div style="background:white;border-radius:14px;padding:14px;margin-bottom:14px;border:1px solid #d9ecf5;">
             <div style="font-size:0.8rem;font-weight:800;color:#0b4a5e;margin-bottom:10px;">
               <i class="fas fa-chart-line"></i> Last 7 Days Growth
             </div>
             <canvas id="analyticsChart" style="width:100%;height:200px;"></canvas>
-            <div style="display:flex;gap:12px;justify-content:center;margin-top:10px;font-size:0.68rem;font-weight:700;">
-              <span style="display:flex;align-items:center;gap:4px;">
-                <span style="width:10px;height:10px;background:#1e8b4b;border-radius:50%;display:inline-block;"></span> Views
-              </span>
-              <span style="display:flex;align-items:center;gap:4px;">
-                <span style="width:10px;height:10px;background:#1c7aa3;border-radius:50%;display:inline-block;"></span> Watch Hours
-              </span>
-              <span style="display:flex;align-items:center;gap:4px;">
-                <span style="width:10px;height:10px;background:#d97706;border-radius:50%;display:inline-block;"></span> Subscribers
-              </span>
-            </div>
           </div>
 
-          <!-- BREAKDOWN -->
           <div style="background:#f7fcff;border-radius:14px;padding:14px;margin-bottom:14px;border:1px solid #d9ecf5;">
             <div style="font-size:0.8rem;font-weight:800;color:#0b4a5e;margin-bottom:10px;">
               <i class="fas fa-chart-pie"></i> Rewards Breakdown
@@ -477,41 +482,29 @@
             </div>
           </div>
 
-          <!-- QUALIFIED VIEWS -->
           <div class="criteria-item">
             <div class="ci-icon"><i class="fas fa-eye"></i></div>
             <div class="ci-text"><h4>Qualified Views</h4><p>From other users</p></div>
             <span class="ci-progress" id="qualifiedViewsRevenue">0</span>
           </div>
 
-          <!-- WITHDRAWAL INPUT SECTION -->
           <div class="withdraw-input-section">
             <div class="wis-balance">
               <span class="wis-balance-label">Available Balance</span>
               <span class="wis-balance-amount">$<span id="currentRevenue">0.00</span></span>
             </div>
-            
             <label class="wis-label">Enter Withdrawal Amount (USD) *</label>
             <div class="wis-input-wrap">
               <span class="wis-dollar">$</span>
-              <input 
-                type="number" 
-                id="withdrawAmountInput" 
-                class="wis-input" 
-                placeholder="Minimum 10.00" 
-                step="0.01" 
-                min="10"
-              >
+              <input type="number" id="withdrawAmountInput" class="wis-input" placeholder="Minimum 10.00" step="0.01" min="10">
             </div>
             <div class="wis-hint">
               <i class="fas fa-info-circle"></i>
               Minimum withdrawal: <strong>$10.00</strong>
             </div>
-            
             <div id="withdrawError" class="wis-error" style="display:none;"></div>
           </div>
 
-          <!-- SIRF 1 REDEEM BUTTON -->
           <button id="withdrawRevenueBtn" type="button" class="verify-btn eligible" style="margin-top:20px;width:100%;font-size:1rem;padding:15px;">
             <i class="fas fa-external-link-alt"></i> Redeem Rewards
           </button>
@@ -579,18 +572,12 @@
           <option value="Urdu">Urdu</option>
           <option value="Hindi">Hindi</option>
           <option value="Arabic">Arabic</option>
-          <option value="Spanish">Spanish</option>
-          <option value="French">French</option>
-          <option value="German">German</option>
         </select>
         <label class="metadata-label" for="setupCurrency">Currency</label>
         <select id="setupCurrency" class="metadata-select">
           <option value="USD">USD — US Dollar</option>
           <option value="PKR">PKR — Pakistani Rupee</option>
           <option value="INR">INR — Indian Rupee</option>
-          <option value="EUR">EUR — Euro</option>
-          <option value="GBP">GBP — British Pound</option>
-          <option value="AED">AED — UAE Dirham</option>
         </select>
         <label class="metadata-label" for="setupRegion">Region / Country</label>
         <select id="setupRegion" class="metadata-select">
@@ -598,9 +585,6 @@
           <option value="Pakistan">Pakistan</option>
           <option value="India">India</option>
           <option value="United States">United States</option>
-          <option value="United Kingdom">United Kingdom</option>
-          <option value="UAE">UAE</option>
-          <option value="Saudi Arabia">Saudi Arabia</option>
         </select>
         <label class="metadata-label" for="setupDesc">Channel description</label>
         <textarea id="setupDesc" class="metadata-textarea" placeholder="Tell viewers about your channel..."></textarea>
@@ -643,6 +627,17 @@
         </div>
 
         <div class="settings-section">
+          <h4><i class="fas fa-palette"></i> Appearance</h4>
+          <div class="settings-item">
+            <div class="settings-item-left">
+              <i class="fas fa-moon"></i>
+              <span>Dark Mode</span>
+            </div>
+            <div class="settings-toggle" id="toggleDarkMode"></div>
+          </div>
+        </div>
+
+        <div class="settings-section">
           <h4><i class="fas fa-sliders-h"></i> Preferences</h4>
           <div class="settings-item">
             <div class="settings-item-left">
@@ -653,10 +648,6 @@
               <option value="English">English</option>
               <option value="Urdu">Urdu</option>
               <option value="Hindi">Hindi</option>
-              <option value="Arabic">Arabic</option>
-              <option value="Spanish">Spanish</option>
-              <option value="French">French</option>
-              <option value="German">German</option>
             </select>
           </div>
           <div class="settings-item">
@@ -668,9 +659,6 @@
               <option value="Global">Global</option>
               <option value="Pakistan">Pakistan</option>
               <option value="India">India</option>
-              <option value="United States">United States</option>
-              <option value="United Kingdom">United Kingdom</option>
-              <option value="UAE">UAE</option>
             </select>
           </div>
           <div class="settings-item">
@@ -682,9 +670,18 @@
               <option value="USD">USD</option>
               <option value="PKR">PKR</option>
               <option value="INR">INR</option>
-              <option value="EUR">EUR</option>
-              <option value="GBP">GBP</option>
-              <option value="AED">AED</option>
+            </select>
+          </div>
+          <div class="settings-item">
+            <div class="settings-item-left">
+              <i class="fas fa-video"></i>
+              <span>Video Quality</span>
+            </div>
+            <select id="settingsQuality">
+              <option value="auto">Auto</option>
+              <option value="1080p">1080p</option>
+              <option value="720p">720p</option>
+              <option value="480p">480p</option>
             </select>
           </div>
         </div>
@@ -725,392 +722,4 @@
           <h4><i class="fas fa-shield-alt"></i> Data & Storage</h4>
           <div class="settings-item">
             <div class="settings-item-left">
-              <i class="fas fa-database"></i>
-              <span>Clear cache</span>
-            </div>
-            <button class="small-action-btn" id="clearCacheBtn">Clear</button>
-          </div>
-          <div class="settings-item">
-            <div class="settings-item-left">
-              <i class="fas fa-download"></i>
-              <span>Download quality</span>
-            </div>
-            <select id="settingsQuality">
-              <option value="auto">Auto</option>
-              <option value="1080p">1080p</option>
-              <option value="720p">720p</option>
-              <option value="480p">480p</option>
-            </select>
-          </div>
-        </div>
-
-        <div class="settings-section">
-          <h4><i class="fas fa-info-circle"></i> About</h4>
-          <div class="settings-item">
-            <div class="settings-item-left">
-              <i class="fas fa-info"></i>
-              <span>App version</span>
-            </div>
-            <span style="font-size:0.72rem;color:#8aa9b8;">v1.0.0</span>
-          </div>
-          <div class="settings-item">
-            <div class="settings-item-left">
-              <i class="fas fa-file-alt"></i>
-              <span>Terms & Privacy</span>
-            </div>
-            <button class="small-action-btn" id="termsBtn">View</button>
-          </div>
-          <div class="settings-item">
-            <div class="settings-item-left">
-              <i class="fas fa-envelope"></i>
-              <span>Contact support</span>
-            </div>
-            <button class="small-action-btn" id="contactBtn">Email</button>
-          </div>
-        </div>
-
-        <div class="settings-section">
-          <h4><i class="fas fa-sign-out-alt"></i> Account Actions</h4>
-          <div class="settings-item">
-            <div class="settings-item-left">
-              <i class="fas fa-sign-out-alt"></i>
-              <span>Log out</span>
-            </div>
-            <button class="small-action-btn danger-btn" id="logoutBtn">Log out</button>
-          </div>
-          <div class="settings-item">
-            <div class="settings-item-left">
-              <i class="fas fa-trash-alt"></i>
-              <span>Delete account</span>
-            </div>
-            <button class="small-action-btn danger-btn" id="deleteAccountBtn">Delete</button>
-          </div>
-        </div>
-      </div>
-    </div>
-
-    <!-- NOTIFICATIONS PAGE -->
-    <div class="notifications-page" id="notificationsPage">
-      <div class="profile-header-bar">
-        <button class="back-btn" id="notificationsBackBtn"><i class="fas fa-arrow-left"></i></button>
-        <h3>Notifications</h3>
-      </div>
-      <div class="notifications-body" id="notificationsBody">
-        <div class="no-notif">No notifications yet</div>
-      </div>
-    </div>
-
-    <!-- CAMERA PANEL -->
-    <div class="camera-panel" id="cameraPanel">
-      <div class="camera-preview">
-        <video id="cameraVideo" autoplay playsinline muted></video>
-        <div class="camera-placeholder" id="cameraPlaceholder">
-          <i class="fas fa-camera"></i>
-          <div>Camera access required.<br>Tap record button to start.</div>
-        </div>
-        <div class="camera-top">
-          <button class="cam-close" id="camClose"><i class="fas fa-times"></i></button>
-          <div class="cam-modes">
-            <button class="cam-mode active" data-mode="video">VIDEO</button>
-            <button class="cam-mode" data-mode="short">SHORT</button>
-          </div>
-          <button class="cam-flip" id="camFlip"><i class="fas fa-sync-alt"></i></button>
-        </div>
-      </div>
-      <div class="camera-bottom">
-        <div class="upload-types">
-          <button class="upload-type-btn" id="longVideoBtn"><i class="fas fa-film"></i> Long</button>
-          <button class="upload-type-btn active" id="shortVideoBtn"><i class="fas fa-bolt"></i> Short</button>
-        </div>
-        <div class="record-row">
-          <button class="gallery-btn" id="galleryBtn"><i class="fas fa-images"></i></button>
-          <button class="record-btn" id="recordBtn">
-            <div class="record-timer" id="recordTimer">00:00</div>
-          </button>
-          <button class="gallery-btn" id="galleryBtn2"><i class="fas fa-photo-video"></i></button>
-        </div>
-      </div>
-    </div>
-
-    <!-- HIDDEN INPUTS -->
-    <input type="file" id="nativeGalleryInput" accept="video/*">
-    <input type="file" id="thumbnailInput" accept="image/*">
-    <input type="file" id="profilePicInput" accept="image/*">
-    <input type="file" id="bannerInput" accept="image/*">
-
-    <!-- UPLOAD MODAL -->
-    <div class="upload-details-modal" id="uploadDetailsModal">
-      <div class="upload-details-inner">
-        <h3><i class="fas fa-upload"></i> Upload details</h3>
-        <div class="upload-preview-box" id="uploadPreviewBox">
-          <i class="fas fa-play-circle"></i>
-          <span class="preview-dur" id="uploadPreviewDur">0:00</span>
-        </div>
-        <label for="uploadTitle">Video title</label>
-        <input type="text" id="uploadTitle" placeholder="Give your video a title">
-        <div class="modal-actions">
-          <button class="btn btn-secondary" id="uploadCancel">Cancel</button>
-          <button class="btn btn-primary" id="uploadNextBtn"><i class="fas fa-arrow-right"></i> Next</button>
-        </div>
-      </div>
-    </div>
-
-    <!-- METADATA PAGE -->
-    <div class="metadata-page" id="metadataPage">
-      <div class="metadata-header">
-        <button class="back-btn" id="metadataBackBtn"><i class="fas fa-arrow-left"></i></button>
-        <h3>Video details</h3>
-      </div>
-      <div class="metadata-body">
-        <label class="metadata-label">Thumbnail</label>
-        <div class="thumbnail-picker" id="thumbnailPicker">
-          <video id="thumbPreviewVideo" muted playsinline></video>
-          <div class="thumb-overlay" id="thumbOverlay">
-            <i class="fas fa-camera-retro"></i><span>Tap to set thumbnail</span>
-          </div>
-        </div>
-        <div class="thumb-action-row">
-          <button class="thumb-action-btn" id="autoThumbBtn" type="button"><i class="fas fa-magic"></i> Auto-generate</button>
-          <button class="thumb-action-btn" id="customThumbBtn" type="button"><i class="fas fa-upload"></i> Upload custom</button>
-        </div>
-
-        <label class="metadata-label" for="metaTitle">Title *</label>
-        <input type="text" id="metaTitle" class="metadata-input" placeholder="Video title">
-        <label class="metadata-label" for="metaDescription">Description</label>
-        <textarea id="metaDescription" class="metadata-textarea" placeholder="Tell viewers about video"></textarea>
-        <label class="metadata-label" for="metaCategory">Category</label>
-        <select id="metaCategory" class="metadata-select">
-          <option value="Gaming">Gaming</option>
-          <option value="Sports">Sports</option>
-          <option value="Music">Music</option>
-          <option value="Education">Education</option>
-          <option value="Entertainment">Entertainment</option>
-          <option value="News">News</option>
-          <option value="Tech">Tech</option>
-          <option value="Cooking">Cooking</option>
-          <option value="Travel">Travel</option>
-          <option value="Fitness">Fitness</option>
-        </select>
-        <label class="metadata-label" for="metaTagInput">Tags</label>
-        <div class="tag-input-wrap">
-          <input type="text" id="metaTagInput" class="metadata-input" placeholder="gaming, tutorial">
-          <button class="tag-add-btn" id="addTagBtn"><i class="fas fa-plus"></i></button>
-        </div>
-        <div class="tags-container" id="tagsContainer"></div>
-        <label class="metadata-label">Visibility</label>
-        <div class="visibility-row">
-          <div class="visibility-option active" data-vis="public"><i class="fas fa-globe"></i> Public</div>
-          <div class="visibility-option" data-vis="unlisted"><i class="fas fa-link"></i> Unlisted</div>
-          <div class="visibility-option" data-vis="private"><i class="fas fa-lock"></i> Private</div>
-        </div>
-        <div id="uploadProgressWrap" style="display:none; margin-top:18px;">
-          <div style="font-size:0.75rem;color:#0e5a6b;font-weight:700;margin-bottom:6px;" id="uploadProgressText">Uploading... 0%</div>
-          <div style="height:8px;background:#e1f0fa;border-radius:8px;overflow:hidden;">
-            <div id="uploadProgressFill" style="height:100%;width:0%;background:linear-gradient(90deg,#1e8b4b,#1c7aa3);border-radius:8px;transition:width 0.3s;"></div>
-          </div>
-        </div>
-      </div>
-      <div class="publish-bar">
-        <button class="btn btn-secondary" id="metadataCancelBtn">Cancel</button>
-        <button class="btn btn-primary" id="metadataPublishBtn"><i class="fas fa-cloud-upload-alt"></i> Publish</button>
-      </div>
-    </div>
-
-    <!-- MY VIDEO ACTIONS MENU -->
-    <div class="video-actions-overlay" id="videoActionsOverlay"></div>
-    <div class="video-actions-menu" id="videoActionsMenu">
-      <div class="video-actions-header">
-        <div class="video-actions-thumb" id="vaThumb"></div>
-        <div class="video-actions-info">
-          <div class="video-actions-title" id="vaTitle">Video title</div>
-          <div class="video-actions-meta" id="vaMeta">0 views</div>
-        </div>
-      </div>
-      <div class="video-actions-list">
-        <div class="video-action-item" id="vaEditBtn">
-          <i class="fas fa-edit"></i>
-          <div>
-            <div class="va-label">Edit Video</div>
-            <div class="va-sub">Title, description, category</div>
-          </div>
-        </div>
-        <div class="video-action-item" id="vaPrivacyBtn">
-          <i class="fas fa-globe"></i>
-          <div>
-            <div class="va-label">Change Privacy</div>
-            <div class="va-sub" id="vaPrivacySub">Public</div>
-          </div>
-        </div>
-        <div class="video-action-item danger" id="vaDeleteBtn">
-          <i class="fas fa-trash-alt"></i>
-          <div>
-            <div class="va-label">Delete Video</div>
-            <div class="va-sub">Permanently remove</div>
-          </div>
-        </div>
-      </div>
-    </div>
-
-    <!-- EDIT VIDEO PAGE -->
-    <div class="edit-video-page" id="editVideoPage">
-      <div class="metadata-header">
-        <button class="back-btn" id="editVideoBackBtn"><i class="fas fa-arrow-left"></i></button>
-        <h3>Edit Video</h3>
-      </div>
-      <div class="metadata-body">
-        <label class="metadata-label">Thumbnail</label>
-        <div class="thumbnail-picker" id="editVideoThumb">
-          <div class="thumb-overlay">
-            <i class="fas fa-camera-retro"></i><span>Tap to change</span>
-          </div>
-        </div>
-        <input type="file" id="editVideoThumbInput" accept="image/*" style="display:none;">
-
-        <label class="metadata-label">Title *</label>
-        <input type="text" id="editVideoTitle" class="metadata-input">
-
-        <label class="metadata-label">Description</label>
-        <textarea id="editVideoDesc" class="metadata-textarea"></textarea>
-
-        <label class="metadata-label">Category</label>
-        <select id="editVideoCategory" class="metadata-select">
-          <option value="Gaming">Gaming</option>
-          <option value="Sports">Sports</option>
-          <option value="Music">Music</option>
-          <option value="Education">Education</option>
-          <option value="Entertainment">Entertainment</option>
-          <option value="News">News</option>
-          <option value="Tech">Tech</option>
-          <option value="Cooking">Cooking</option>
-          <option value="Travel">Travel</option>
-          <option value="Fitness">Fitness</option>
-        </select>
-
-        <label class="metadata-label">Privacy</label>
-        <div class="visibility-row">
-          <div class="visibility-option" data-vis="public"><i class="fas fa-globe"></i> Public</div>
-          <div class="visibility-option" data-vis="unlisted"><i class="fas fa-link"></i> Unlisted</div>
-          <div class="visibility-option" data-vis="private"><i class="fas fa-lock"></i> Private</div>
-        </div>
-      </div>
-      <div class="publish-bar">
-        <button class="btn btn-secondary" id="editVideoCancelBtn">Cancel</button>
-        <button class="btn btn-primary" id="editVideoSaveBtn"><i class="fas fa-save"></i> Save Changes</button>
-      </div>
-    </div>
-
-    <!-- TERMS & PRIVACY PAGE -->
-    <div class="terms-page" id="termsPage">
-      <div class="profile-header-bar">
-        <button class="back-btn" id="termsBackBtn"><i class="fas fa-arrow-left"></i></button>
-        <h3>Terms & Privacy</h3>
-      </div>
-      <div class="terms-body">
-        <div class="terms-section">
-          <h2>1. Acceptance of Terms</h2>
-          <p>By using ForTube, you agree to these Terms of Service. If you do not agree, please do not use our platform.</p>
-        </div>
-        <div class="terms-section">
-          <h2>2. User Accounts</h2>
-          <p>You are responsible for maintaining the confidentiality of your account credentials. You must be at least 13 years old to use ForTube.</p>
-        </div>
-        <div class="terms-section">
-          <h2>3. Content Guidelines</h2>
-          <p>You may not upload content that is:</p>
-          <ul>
-            <li>Illegal, harmful, or threatening</li>
-            <li>Copyrighted without permission</li>
-            <li>Hateful, abusive, or discriminatory</li>
-            <li>Sexually explicit or violent</li>
-            <li>Spam or misleading</li>
-          </ul>
-        </div>
-        <div class="terms-section">
-          <h2>4. Content Ownership</h2>
-          <p>You retain ownership of videos you upload. By uploading, you grant ForTube a license to display, distribute, and promote your content.</p>
-        </div>
-        <div class="terms-section">
-          <h2>5. Privacy Policy</h2>
-          <p>We collect minimal data to provide our service:</p>
-          <ul>
-            <li>Email address for account login</li>
-            <li>Channel information you provide</li>
-            <li>Videos you upload</li>
-            <li>Basic usage analytics</li>
-          </ul>
-          <p>We do not sell your personal information to third parties.</p>
-        </div>
-        <div class="terms-section">
-          <h2>6. Creator Rewards</h2>
-          <p>To be eligible for Creator Rewards, you must meet our criteria: 1,000 views, 4,000 watch hours, and 1,000 subscribers. Rewards are calculated at $1 per 500 subscribers and $0.50 per 1,000 watch hours.</p>
-        </div>
-        <div class="terms-section">
-          <h2>7. Content Moderation</h2>
-          <p>We reserve the right to remove any content that violates these terms.</p>
-        </div>
-        <div class="terms-section">
-          <h2>8. Termination</h2>
-          <p>You may delete your account at any time. We may terminate accounts that violate our terms.</p>
-        </div>
-        <div class="terms-section">
-          <h2>9. Disclaimer</h2>
-          <p>ForTube is provided "as is" without warranties.</p>
-        </div>
-        <div class="terms-section">
-          <h2>10. Contact</h2>
-          <p>For any questions about these terms, contact us at <strong>syedtechnical63@gmail.com</strong></p>
-        </div>
-      </div>
-    </div>
-
-    <!-- SUPPORT / CHAT PAGE -->
-    <div class="support-page" id="supportPage">
-      <div class="profile-header-bar">
-        <button class="back-btn" id="supportBackBtn"><i class="fas fa-arrow-left"></i></button>
-        <h3><i class="fas fa-headset"></i> Support Chat</h3>
-      </div>
-      <div class="support-body" id="supportBody">
-        <div class="support-message bot">
-          <div class="support-avatar"><i class="fas fa-robot"></i></div>
-          <div class="support-bubble">
-            <div class="support-text">Hi! 👋 Welcome to ForTube Support. How can I help you today?</div>
-            <div class="support-time">Just now</div>
-          </div>
-        </div>
-        <div class="support-message bot">
-          <div class="support-avatar"><i class="fas fa-robot"></i></div>
-          <div class="support-bubble">
-            <div class="support-text">You can ask me about:</div>
-            <div class="support-quick">
-              <button class="quick-btn" data-msg="How to upload video?">How to upload video?</button>
-              <button class="quick-btn" data-msg="How to go live?">How to go live?</button>
-              <button class="quick-btn" data-msg="Creator Rewards requirements">Creator Rewards requirements</button>
-              <button class="quick-btn" data-msg="Video not playing">Video not playing</button>
-            </div>
-            <div class="support-time">Just now</div>
-          </div>
-        </div>
-      </div>
-      <div class="support-input-bar">
-        <input type="text" id="supportInput" placeholder="Type your message..." autocomplete="off">
-        <button class="support-send-btn" id="supportSendBtn"><i class="fas fa-paper-plane"></i></button>
-      </div>
-    </div>
-
-    <!-- ALERT POPUP -->
-    <div class="alert-popup" id="alertPopup">
-      <div class="alert-popup-inner">
-        <div class="alert-icon" id="alertIcon"><i class="fas fa-broadcast-tower"></i></div>
-        <h3 id="alertTitle">Alert</h3>
-        <p id="alertMessage"></p>
-        <button class="alert-btn" id="alertCloseBtn">Got it</button>
-      </div>
-    </div>
-
-    <!-- TOAST -->
-    <div class="toast" id="toast"></div>
-  </div>
-
-  <script src="script.js"></script>
-</body>
-</html>
+              <i class="fas 
