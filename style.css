@@ -3784,3 +3784,132 @@ body {
     height: 180px;
   }
 }
+/* ============================================================
+   💰 WITHDRAW INPUT SECTION
+   ============================================================ */
+
+.withdraw-input-section {
+  margin-top: 24px;
+  padding: 18px 16px;
+  background: linear-gradient(135deg, #f7fcff, #eef8f3);
+  border: 2px solid #b9e0cf;
+  border-radius: 18px;
+  text-align: left;
+}
+
+.wis-balance {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 10px 14px;
+  background: white;
+  border-radius: 12px;
+  margin-bottom: 16px;
+  border: 1.5px solid #d9ecf5;
+}
+
+.wis-balance-label {
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: #4d7e8c;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.wis-balance-amount {
+  font-size: 1.3rem;
+  font-weight: 900;
+  color: #1e8b4b;
+  letter-spacing: -0.5px;
+}
+
+.wis-label {
+  display: block;
+  font-size: 0.75rem;
+  font-weight: 800;
+  color: #0e5a6b;
+  margin-bottom: 8px;
+}
+
+.wis-input-wrap {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.wis-dollar {
+  position: absolute;
+  left: 14px;
+  font-size: 1.1rem;
+  font-weight: 900;
+  color: #1e8b4b;
+  pointer-events: none;
+  z-index: 2;
+}
+
+.wis-input {
+  width: 100%;
+  padding: 14px 14px 14px 36px;
+  border: 2px solid #cde6f2;
+  border-radius: 14px;
+  font-size: 1rem;
+  font-weight: 800;
+  color: #0b2d3b;
+  outline: none;
+  background: white;
+  transition: 0.2s;
+  font-family: inherit;
+}
+
+.wis-input:focus {
+  border-color: #2e9b72;
+  box-shadow: 0 0 0 4px rgba(46, 155, 114, 0.15);
+  transform: translateY(-1px);
+}
+
+.wis-input::placeholder {
+  color: #8aa9b8;
+  font-weight: 600;
+}
+
+.wis-input::-webkit-outer-spin-button,
+.wis-input::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
+.wis-input[type=number] {
+  -moz-appearance: textfield;
+}
+
+.wis-hint {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 8px;
+  font-size: 0.72rem;
+  color: #4d7e8c;
+  font-weight: 600;
+}
+
+.wis-hint i {
+  color: #1e8b4b;
+}
+
+.wis-error {
+  margin-top: 10px;
+  padding: 10px 14px;
+  background: #fee2e2;
+  border: 1px solid #fecaca;
+  border-radius: 10px;
+  color: #b91c1c;
+  font-size: 0.78rem;
+  font-weight: 700;
+  animation: shake 0.4s ease;
+}
+
+@keyframes shake {
+  0%, 100% { transform: translateX(0); }
+  25% { transform: translateX(-6px); }
+  75% { transform: translateX(6px); }
+}
