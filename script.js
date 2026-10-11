@@ -4,7 +4,16 @@
 
 const SUPABASE_URL = "https://eaxstlpltwgpmaupgcwq.supabase.co";
 const SUPABASE_KEY = "sb_publishable_sfcTaBDwgGM8ccmMfwP_ig_A6jTZ8w7";
-const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_KEY, {
+  auth: {
+    persistSession: true,           // ✅ Session browser mein save rakhega
+    autoRefreshToken: true,         // ✅ Token automatically refresh karega
+    detectSessionInUrl: true,       // ✅ Magic link / OAuth handle karega
+    storage: window.localStorage,   // ✅ localStorage use karega (permanent)
+    storageKey: 'fortube_auth_token', // ✅ Custom key
+    flowType: 'pkce'
+  }
+});
 
 const AGORA_APP_ID = "e84b0914baa44e8c878fb68ade1d804e";
 const ADMIN_EMAILS = ["syedtechnical63@gmail.com"];
