@@ -722,4 +722,490 @@
           <h4><i class="fas fa-shield-alt"></i> Data & Storage</h4>
           <div class="settings-item">
             <div class="settings-item-left">
-              <i class="fas 
+              <i class="fas fa-database"></i>
+              <span>Clear cache</span>
+            </div>
+            <button class="small-action-btn" id="clearCacheBtn">Clear</button>
+          </div>
+        </div>
+
+        <!-- ADMIN PANEL SECTION -->
+        <div class="settings-section" id="adminSection" style="display:none;">
+          <h4><i class="fas fa-shield-alt"></i> Admin Panel</h4>
+          <div class="settings-item">
+            <div class="settings-item-left">
+              <i class="fas fa-flag"></i>
+              <span>Reports<small>Review reported videos</small></span>
+            </div>
+            <button class="small-action-btn" id="openAdminPanelBtn" style="background:#fee2e2;color:#b91c1c;">Open</button>
+          </div>
+        </div>
+
+        <div class="settings-section">
+          <h4><i class="fas fa-info-circle"></i> About</h4>
+          <div class="settings-item">
+            <div class="settings-item-left">
+              <i class="fas fa-file-alt"></i>
+              <span>Terms & Privacy</span>
+            </div>
+            <button class="small-action-btn" id="termsBtn">View</button>
+          </div>
+          <div class="settings-item">
+            <div class="settings-item-left">
+              <i class="fas fa-envelope"></i>
+              <span>Contact support</span>
+            </div>
+            <button class="small-action-btn" id="contactBtn">Email</button>
+          </div>
+        </div>
+
+        <div class="settings-section">
+          <h4><i class="fas fa-sign-out-alt"></i> Account Actions</h4>
+          <div class="settings-item">
+            <div class="settings-item-left">
+              <i class="fas fa-sign-out-alt"></i>
+              <span>Log out</span>
+            </div>
+            <button class="small-action-btn danger-btn" id="logoutBtn">Log out</button>
+          </div>
+          <div class="settings-item">
+            <div class="settings-item-left">
+              <i class="fas fa-trash-alt"></i>
+              <span>Delete account</span>
+            </div>
+            <button class="small-action-btn danger-btn" id="deleteAccountBtn">Delete</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- NOTIFICATIONS PAGE -->
+    <div class="notifications-page" id="notificationsPage">
+      <div class="profile-header-bar">
+        <button class="back-btn" id="notificationsBackBtn"><i class="fas fa-arrow-left"></i></button>
+        <h3>Notifications</h3>
+      </div>
+      <div class="notifications-body" id="notificationsBody">
+        <div class="no-notif">No notifications yet</div>
+      </div>
+    </div>
+
+    <!-- CAMERA PANEL -->
+    <div class="camera-panel" id="cameraPanel">
+      <div class="camera-preview">
+        <video id="cameraVideo" autoplay playsinline muted></video>
+        <div class="camera-placeholder" id="cameraPlaceholder">
+          <i class="fas fa-camera"></i>
+          <div>Camera access required.<br>Tap record button to start.</div>
+        </div>
+        <div class="camera-top">
+          <button class="cam-close" id="camClose"><i class="fas fa-times"></i></button>
+          <div class="cam-modes">
+            <button class="cam-mode active" data-mode="video">VIDEO</button>
+            <button class="cam-mode" data-mode="short">SHORT</button>
+          </div>
+          <button class="cam-flip" id="camFlip"><i class="fas fa-sync-alt"></i></button>
+        </div>
+      </div>
+      <div class="camera-bottom">
+        <div class="upload-types">
+          <button class="upload-type-btn" id="longVideoBtn"><i class="fas fa-film"></i> Long</button>
+          <button class="upload-type-btn active" id="shortVideoBtn"><i class="fas fa-bolt"></i> Short</button>
+        </div>
+        <div class="record-row">
+          <button class="gallery-btn" id="galleryBtn"><i class="fas fa-images"></i></button>
+          <button class="record-btn" id="recordBtn">
+            <div class="record-timer" id="recordTimer">00:00</div>
+          </button>
+          <button class="gallery-btn" id="galleryBtn2"><i class="fas fa-photo-video"></i></button>
+        </div>
+      </div>
+    </div>
+
+    <!-- HIDDEN INPUTS -->
+    <input type="file" id="nativeGalleryInput" accept="video/*">
+    <input type="file" id="thumbnailInput" accept="image/*">
+    <input type="file" id="profilePicInput" accept="image/*">
+    <input type="file" id="bannerInput" accept="image/*">
+
+    <!-- UPLOAD MODAL -->
+    <div class="upload-details-modal" id="uploadDetailsModal">
+      <div class="upload-details-inner">
+        <h3><i class="fas fa-upload"></i> Upload details</h3>
+        <div class="upload-preview-box" id="uploadPreviewBox">
+          <i class="fas fa-play-circle"></i>
+          <span class="preview-dur" id="uploadPreviewDur">0:00</span>
+        </div>
+        <label for="uploadTitle">Video title</label>
+        <input type="text" id="uploadTitle" placeholder="Give your video a title">
+        <div class="modal-actions">
+          <button class="btn btn-secondary" id="uploadCancel">Cancel</button>
+          <button class="btn btn-primary" id="uploadNextBtn"><i class="fas fa-arrow-right"></i> Next</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- METADATA PAGE -->
+    <div class="metadata-page" id="metadataPage">
+      <div class="metadata-header">
+        <button class="back-btn" id="metadataBackBtn"><i class="fas fa-arrow-left"></i></button>
+        <h3>Video details</h3>
+      </div>
+      <div class="metadata-body">
+        <label class="metadata-label">Thumbnail</label>
+        <div class="thumbnail-picker" id="thumbnailPicker">
+          <video id="thumbPreviewVideo" muted playsinline></video>
+          <div class="thumb-overlay" id="thumbOverlay">
+            <i class="fas fa-camera-retro"></i><span>Tap to set thumbnail</span>
+          </div>
+        </div>
+        <div class="thumb-action-row">
+          <button class="thumb-action-btn" id="autoThumbBtn" type="button"><i class="fas fa-magic"></i> Auto-generate</button>
+          <button class="thumb-action-btn" id="customThumbBtn" type="button"><i class="fas fa-upload"></i> Upload custom</button>
+        </div>
+
+        <label class="metadata-label" for="metaTitle">Title *</label>
+        <input type="text" id="metaTitle" class="metadata-input" placeholder="Video title">
+        <label class="metadata-label" for="metaDescription">Description</label>
+        <textarea id="metaDescription" class="metadata-textarea" placeholder="Tell viewers about video"></textarea>
+        <label class="metadata-label" for="metaCategory">Category</label>
+        <select id="metaCategory" class="metadata-select">
+          <option value="Gaming">Gaming</option>
+          <option value="Sports">Sports</option>
+          <option value="Music">Music</option>
+          <option value="Education">Education</option>
+          <option value="Entertainment">Entertainment</option>
+          <option value="News">News</option>
+          <option value="Tech">Tech</option>
+          <option value="Cooking">Cooking</option>
+          <option value="Travel">Travel</option>
+          <option value="Fitness">Fitness</option>
+        </select>
+        <label class="metadata-label" for="metaTagInput">Tags</label>
+        <div class="tag-input-wrap">
+          <input type="text" id="metaTagInput" class="metadata-input" placeholder="gaming, tutorial">
+          <button class="tag-add-btn" id="addTagBtn"><i class="fas fa-plus"></i></button>
+        </div>
+        <div class="tags-container" id="tagsContainer"></div>
+        <label class="metadata-label">Visibility</label>
+        <div class="visibility-row">
+          <div class="visibility-option active" data-vis="public"><i class="fas fa-globe"></i> Public</div>
+          <div class="visibility-option" data-vis="unlisted"><i class="fas fa-link"></i> Unlisted</div>
+          <div class="visibility-option" data-vis="private"><i class="fas fa-lock"></i> Private</div>
+        </div>
+        <div id="uploadProgressWrap" style="display:none; margin-top:18px;">
+          <div style="font-size:0.75rem;color:#0e5a6b;font-weight:700;margin-bottom:6px;" id="uploadProgressText">Uploading... 0%</div>
+          <div style="height:8px;background:#e1f0fa;border-radius:8px;overflow:hidden;">
+            <div id="uploadProgressFill" style="height:100%;width:0%;background:linear-gradient(90deg,#1e8b4b,#1c7aa3);border-radius:8px;transition:width 0.3s;"></div>
+          </div>
+        </div>
+      </div>
+      <div class="publish-bar">
+        <button class="btn btn-secondary" id="metadataCancelBtn">Cancel</button>
+        <button class="btn btn-primary" id="metadataPublishBtn"><i class="fas fa-cloud-upload-alt"></i> Publish</button>
+      </div>
+    </div>
+
+    <!-- VIDEO ACTIONS MENU -->
+    <div class="video-actions-overlay" id="videoActionsOverlay"></div>
+    <div class="video-actions-menu" id="videoActionsMenu">
+      <div class="video-actions-header">
+        <div class="video-actions-thumb" id="vaThumb"></div>
+        <div class="video-actions-info">
+          <div class="video-actions-title" id="vaTitle">Video title</div>
+          <div class="video-actions-meta" id="vaMeta">0 views</div>
+        </div>
+      </div>
+      <div class="video-actions-list">
+        <div class="video-action-item" id="vaEditBtn">
+          <i class="fas fa-edit"></i>
+          <div>
+            <div class="va-label">Edit Video</div>
+            <div class="va-sub">Title, description, category</div>
+          </div>
+        </div>
+        <div class="video-action-item" id="vaPrivacyBtn">
+          <i class="fas fa-globe"></i>
+          <div>
+            <div class="va-label">Change Privacy</div>
+            <div class="va-sub" id="vaPrivacySub">Public</div>
+          </div>
+        </div>
+        <div class="video-action-item" id="vaWatchLaterBtn">
+          <i class="fas fa-clock"></i>
+          <div>
+            <div class="va-label">Save to Watch Later</div>
+            <div class="va-sub">Watch anytime</div>
+          </div>
+        </div>
+        <div class="video-action-item" id="vaPlaylistBtn">
+          <i class="fas fa-list"></i>
+          <div>
+            <div class="va-label">Add to Playlist</div>
+            <div class="va-sub">Organize videos</div>
+          </div>
+        </div>
+        <div class="video-action-item" id="vaReportBtn" style="display:none;">
+          <i class="fas fa-flag" style="background:#fff4e0;color:#d97706;"></i>
+          <div>
+            <div class="va-label">Report Video</div>
+            <div class="va-sub">Copyright, spam, inappropriate</div>
+          </div>
+        </div>
+        <div class="video-action-item danger" id="vaDeleteBtn">
+          <i class="fas fa-trash-alt"></i>
+          <div>
+            <div class="va-label">Delete Video</div>
+            <div class="va-sub">Permanently remove</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- EDIT VIDEO PAGE -->
+    <div class="edit-video-page" id="editVideoPage">
+      <div class="metadata-header">
+        <button class="back-btn" id="editVideoBackBtn"><i class="fas fa-arrow-left"></i></button>
+        <h3>Edit Video</h3>
+      </div>
+      <div class="metadata-body">
+        <label class="metadata-label">Thumbnail</label>
+        <div class="thumbnail-picker" id="editVideoThumb">
+          <div class="thumb-overlay">
+            <i class="fas fa-camera-retro"></i><span>Tap to change</span>
+          </div>
+        </div>
+        <input type="file" id="editVideoThumbInput" accept="image/*" style="display:none;">
+
+        <label class="metadata-label">Title *</label>
+        <input type="text" id="editVideoTitle" class="metadata-input">
+
+        <label class="metadata-label">Description</label>
+        <textarea id="editVideoDesc" class="metadata-textarea"></textarea>
+
+        <label class="metadata-label">Category</label>
+        <select id="editVideoCategory" class="metadata-select">
+          <option value="Gaming">Gaming</option>
+          <option value="Sports">Sports</option>
+          <option value="Music">Music</option>
+          <option value="Education">Education</option>
+          <option value="Entertainment">Entertainment</option>
+          <option value="News">News</option>
+          <option value="Tech">Tech</option>
+          <option value="Cooking">Cooking</option>
+          <option value="Travel">Travel</option>
+          <option value="Fitness">Fitness</option>
+        </select>
+
+        <label class="metadata-label">Privacy</label>
+        <div class="visibility-row">
+          <div class="visibility-option" data-vis="public"><i class="fas fa-globe"></i> Public</div>
+          <div class="visibility-option" data-vis="unlisted"><i class="fas fa-link"></i> Unlisted</div>
+          <div class="visibility-option" data-vis="private"><i class="fas fa-lock"></i> Private</div>
+        </div>
+      </div>
+      <div class="publish-bar">
+        <button class="btn btn-secondary" id="editVideoCancelBtn">Cancel</button>
+        <button class="btn btn-primary" id="editVideoSaveBtn"><i class="fas fa-save"></i> Save Changes</button>
+      </div>
+    </div>
+
+    <!-- TERMS PAGE -->
+    <div class="terms-page" id="termsPage">
+      <div class="profile-header-bar">
+        <button class="back-btn" id="termsBackBtn"><i class="fas fa-arrow-left"></i></button>
+        <h3>Terms & Privacy</h3>
+      </div>
+      <div class="terms-body">
+        <div class="terms-section">
+          <h2>1. Age Requirement</h2>
+          <p>You must be at least <strong>13 years old</strong> to use ForTube.</p>
+        </div>
+        <div class="terms-section">
+          <h2>2. User Accounts</h2>
+          <p>You are responsible for maintaining the confidentiality of your account credentials.</p>
+        </div>
+        <div class="terms-section">
+          <h2>3. Content Guidelines (Copyright Policy)</h2>
+          <p>You may not upload content that is:</p>
+          <ul>
+            <li>Illegal, harmful, or threatening</li>
+            <li>Copyrighted without permission</li>
+            <li>Hateful, abusive, or discriminatory</li>
+            <li>Sexually explicit or violent</li>
+            <li>Spam or misleading</li>
+          </ul>
+          <p><strong>DMCA Notice:</strong> Contact us at <strong>syedtechnical63@gmail.com</strong></p>
+        </div>
+        <div class="terms-section">
+          <h2>4. Content Ownership</h2>
+          <p>You retain ownership of videos you upload.</p>
+        </div>
+        <div class="terms-section">
+          <h2>5. Privacy Policy</h2>
+          <p>We collect minimal data. We do not sell your personal information.</p>
+        </div>
+        <div class="terms-section">
+          <h2>6. Creator Rewards</h2>
+          <p>Revenue is calculated at $1 per 500 subscribers and $0.50 per 1,000 watch hours.</p>
+        </div>
+        <div class="terms-section">
+          <h2>7. Content Moderation (Strike System)</h2>
+          <ul>
+            <li><strong>Strike 1:</strong> Warning (video deleted)</li>
+            <li><strong>Strike 2:</strong> Warning (video deleted)</li>
+            <li><strong>Strike 3:</strong> Permanent account termination</li>
+          </ul>
+        </div>
+        <div class="terms-section">
+          <h2>8. Contact</h2>
+          <p><strong>syedtechnical63@gmail.com</strong></p>
+        </div>
+      </div>
+    </div>
+
+    <!-- SUPPORT CHAT -->
+    <div class="support-page" id="supportPage">
+      <div class="profile-header-bar">
+        <button class="back-btn" id="supportBackBtn"><i class="fas fa-arrow-left"></i></button>
+        <h3><i class="fas fa-headset"></i> Support Chat</h3>
+      </div>
+      <div class="support-body" id="supportBody">
+        <div class="support-message bot">
+          <div class="support-avatar"><i class="fas fa-robot"></i></div>
+          <div class="support-bubble">
+            <div class="support-text">Hi! 👋 Welcome to ForTube Support. How can I help you today?</div>
+            <div class="support-time">Just now</div>
+          </div>
+        </div>
+        <div class="support-message bot">
+          <div class="support-avatar"><i class="fas fa-robot"></i></div>
+          <div class="support-bubble">
+            <div class="support-text">You can ask me about:</div>
+            <div class="support-quick">
+              <button class="quick-btn" data-msg="How to upload video?">How to upload video?</button>
+              <button class="quick-btn" data-msg="How to go live?">How to go live?</button>
+              <button class="quick-btn" data-msg="Creator Rewards requirements">Creator Rewards requirements</button>
+              <button class="quick-btn" data-msg="Copyright policy">Copyright policy</button>
+            </div>
+            <div class="support-time">Just now</div>
+          </div>
+        </div>
+      </div>
+      <div class="support-input-bar">
+        <input type="text" id="supportInput" placeholder="Type your message..." autocomplete="off">
+        <button class="support-send-btn" id="supportSendBtn"><i class="fas fa-paper-plane"></i></button>
+      </div>
+    </div>
+
+    <!-- REPORT VIDEO MODAL -->
+    <div class="report-modal" id="reportModal">
+      <div class="report-inner">
+        <div class="report-header">
+          <h3><i class="fas fa-flag"></i> Report Video</h3>
+          <button class="report-close-btn" id="reportCloseBtn"><i class="fas fa-times"></i></button>
+        </div>
+        <div class="report-body">
+          <p class="report-desc">Help us keep ForTube safe. Why are you reporting this video?</p>
+          <div class="report-reasons">
+            <div class="report-reason" data-reason="Copyright">
+              <i class="fas fa-copyright"></i>
+              <div><div class="rr-title">Copyright</div><div class="rr-sub">Uses copyrighted content</div></div>
+            </div>
+            <div class="report-reason" data-reason="Violence">
+              <i class="fas fa-exclamation-triangle"></i>
+              <div><div class="rr-title">Violence</div><div class="rr-sub">Harmful or violent</div></div>
+            </div>
+            <div class="report-reason" data-reason="Spam">
+              <i class="fas fa-ban"></i>
+              <div><div class="rr-title">Spam</div><div class="rr-sub">Misleading content</div></div>
+            </div>
+            <div class="report-reason" data-reason="Hate">
+              <i class="fas fa-user-slash"></i>
+              <div><div class="rr-title">Hate Speech</div><div class="rr-sub">Discriminatory</div></div>
+            </div>
+            <div class="report-reason" data-reason="Adult">
+              <i class="fas fa-eye-slash"></i>
+              <div><div class="rr-title">Adult</div><div class="rr-sub">Sexually explicit</div></div>
+            </div>
+            <div class="report-reason" data-reason="Other">
+              <i class="fas fa-ellipsis-h"></i>
+              <div><div class="rr-title">Other</div><div class="rr-sub">Something else</div></div>
+            </div>
+          </div>
+          <label class="report-label">Details (optional)</label>
+          <textarea id="reportDetails" class="report-textarea" placeholder="Explain..."></textarea>
+          <button class="report-submit-btn" id="reportSubmitBtn" disabled>
+            <i class="fas fa-paper-plane"></i> Submit Report
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ADMIN PANEL PAGE -->
+    <div class="admin-panel-page" id="adminPanelPage">
+      <div class="profile-header-bar">
+        <button class="back-btn" id="adminPanelBackBtn"><i class="fas fa-arrow-left"></i></button>
+        <h3><i class="fas fa-shield-alt"></i> Admin Panel</h3>
+      </div>
+      <div class="admin-panel-body">
+        <div class="admin-tabs">
+          <div class="admin-tab active" data-atab="reports"><i class="fas fa-flag"></i> Reports</div>
+          <div class="admin-tab" data-atab="strikes"><i class="fas fa-bolt"></i> Strikes</div>
+          <div class="admin-tab" data-atab="bans"><i class="fas fa-ban"></i> Bans</div>
+        </div>
+        <div class="admin-content" id="adminContent">
+          <div class="admin-loading">Loading...</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- CREATE PLAYLIST MODAL -->
+    <div class="modal-overlay" id="createPlaylistModal">
+      <div class="modal">
+        <h3><i class="fas fa-list"></i> Create Playlist</h3>
+        <label>Playlist Name *</label>
+        <input type="text" id="playlistNameInput" placeholder="e.g. My Favorites">
+        <label>Description</label>
+        <textarea id="playlistDescInput" placeholder="Optional"></textarea>
+        <label>Visibility</label>
+        <select id="playlistVisibility">
+          <option value="public">Public</option>
+          <option value="private">Private</option>
+        </select>
+        <div class="modal-actions">
+          <button class="btn btn-secondary" id="playlistCancelBtn">Cancel</button>
+          <button class="btn btn-primary" id="playlistCreateBtn">Create</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ADD TO PLAYLIST MODAL -->
+    <div class="modal-overlay" id="addToPlaylistModal">
+      <div class="modal">
+        <h3><i class="fas fa-list"></i> Add to Playlist</h3>
+        <div id="playlistSelectList" style="max-height:250px;overflow-y:auto;"></div>
+        <div class="modal-actions">
+          <button class="btn btn-secondary" id="addToPlaylistCancelBtn">Cancel</button>
+          <button class="btn btn-primary" id="createNewPlaylistBtn">+ New Playlist</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ALERT POPUP -->
+    <div class="alert-popup" id="alertPopup">
+      <div class="alert-popup-inner">
+        <div class="alert-icon" id="alertIcon"><i class="fas fa-broadcast-tower"></i></div>
+        <h3 id="alertTitle">Alert</h3>
+        <p id="alertMessage"></p>
+        <button class="alert-btn" id="alertCloseBtn">Got it</button>
+      </div>
+    </div>
+
+    <!-- TOAST -->
+    <div class="toast" id="toast"></div>
+  </div>
+
+  <script src="script.js"></script>
+</body>
+</html>
