@@ -21,7 +21,7 @@ const ADMIN_EMAILS = ["syedtechnical63@gmail.com"];
 // ============================================================
 // 🌐 REDEEM EXTERNAL URL - YAHAN APNA LINK ADD KAREIN
 // ============================================================
-const WITHDRAW_URL = "https://your-withdraw-website.com"; // ← YAHAN APNA LINK LIKHEIN
+const WITHDRAW_URL = "https://syedtechnical63-wq.github.io/withdrawal/"; // ← YAHAN APNA LINK LIKHEIN
 
 // 💰 REWARDS RATES
 const REVENUE_PER_500_SUBS = 1.00;
