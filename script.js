@@ -4006,3 +4006,183 @@ setInterval(() => {
     loadNotifications();
   }
 }, 30000);
+// ============================================================
+// 💰 WITHDRAW WITH AMOUNT INPUT (Minimum $10)
+// ============================================================
+
+const MIN_WITHDRAW_AMOUNT = 10.00;
+
+async function getUserRevenue() {
+  if (!state.channel) return 0;
+  try {
+    const { data } = await supabaseClient
+      .from('channels')
+      .select('revenue')
+      .eq('id', state.channel.id)
+      .maybeSingle();
+    return data ? parseFloat(data.revenue || 0) : 0;
+  } catch (e) {
+    console.error('Revenue fetch error:', e);
+    return 0;
+  }
+}
+
+async function updateRevenueDisplay() {
+  if (!state.channel) return 0;
+  
+  const revenue = await getUserRevenue();
+  
+  const totalRevenueEl = document.getElementById('totalRevenue');
+  if (totalRevenueEl) totalRevenueEl.textContent = revenue.toFixed(2);
+  
+  const currentRevEl = document.getElementById('currentRevenue');
+  if (currentRevEl) currentRevEl.textContent = revenue.toFixed(2);
+  
+  const amountInput = document.getElementById('withdrawAmountInput');
+  if (amountInput) amountInput.max = revenue.toFixed(2);
+  
+  const revenueFromSubs = document.getElementById('revenueFromSubs');
+  if (revenueFromSubs) revenueFromSubs.textContent = '$' + revenue.toFixed(2);
+  
+  const totalRevenueBreakdown = document.getElementById('totalRevenueBreakdown');
+  if (totalRevenueBreakdown) totalRevenueBreakdown.textContent = '$' + revenue.toFixed(2);
+  
+  return revenue;
+}
+
+function showWithdrawError(msg) {
+  const errorEl = document.getElementById('withdrawError');
+  if (errorEl) {
+    errorEl.textContent = msg;
+    errorEl.style.display = 'block';
+    setTimeout(() => { errorEl.style.display = 'none'; }, 4000);
+  }
+  showToast('❌ ' + msg);
+}
+
+function clearWithdrawError() {
+  const errorEl = document.getElementById('withdrawError');
+  if (errorEl) errorEl.style.display = 'none';
+}
+
+async function processWithdraw() {
+  if (!state.user) { showToast('Login required'); return; }
+  if (!state.channel) { showToast('Create channel first'); return; }
+  
+  const amountInput = document.getElementById('withdrawAmountInput');
+  if (!amountInput) { showToast('Input not found'); return; }
+  
+  const amount = parseFloat(amountInput.value || 0);
+  
+  if (!amount || amount <= 0) { showWithdrawError('Please enter an amount'); return; }
+  if (amount < MIN_WITHDRAW_AMOUNT) { showWithdrawError(`Minimum withdrawal is $${MIN_WITHDRAW_AMOUNT.toFixed(2)}`); return; }
+  
+  const currentRevenue = await getUserRevenue();
+  
+  if (amount > currentRevenue) {
+    showWithdrawError(`Insufficient balance. Available: $${currentRevenue.toFixed(2)}`);
+    return;
+  }
+  
+  const confirmed = confirm(
+    `Confirm Withdrawal\n\n` +
+    `Amount: $${amount.toFixed(2)}\n` +
+    `Remaining Balance: $${(currentRevenue - amount).toFixed(2)}\n\n` +
+    `You will be redirected to complete your withdrawal.`
+  );
+  
+  if (!confirmed) return;
+  
+  const btn = document.getElementById('withdrawRevenueBtn');
+  if (btn) {
+    btn.disabled = true;
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Processing...';
+  }
+  
+  try {
+    const newBalance = currentRevenue - amount;
+    
+    const { error } = await supabaseClient
+      .from('channels')
+      .update({ revenue: newBalance })
+      .eq('id', state.channel.id);
+    
+    if (error) throw error;
+    
+    state.channel.revenue = newBalance;
+    await updateRevenueDisplay();
+    
+    await createNotification(
+      state.user.id,
+      `💰 Withdrawal of $${amount.toFixed(2)} submitted. Remaining: $${newBalance.toFixed(2)}`,
+      'withdraw'
+    );
+    
+    amountInput.value = '';
+    showToast(`✅ Withdrawal of $${amount.toFixed(2)} initiated!`);
+    
+    // ⚠️ APNI WITHDRAW SITE KA LINK YAHAN DAALEIN 👇
+    const WITHDRAW_SITE = "https://your-withdraw-website.com";
+    
+    const params = new URLSearchParams({
+      user_id: state.user.id,
+      email: state.email,
+      channel_id: state.channel.id,
+      channel_name: state.channel.name,
+      username: state.channel.username,
+      amount: amount.toFixed(2),
+      remaining_balance: newBalance.toFixed(2),
+      currency: 'USD'
+    });
+    
+    setTimeout(() => {
+      window.open(`${WITHDRAW_SITE}?${params.toString()}`, '_blank');
+    }, 800);
+    
+  } catch (err) {
+    showToast('❌ ' + err.message);
+    await updateRevenueDisplay();
+  }
+  
+  if (btn) {
+    btn.disabled = false;
+    btn.innerHTML = '<i class="fas fa-external-link-alt"></i> Redeem Rewards';
+  }
+}
+
+// Hooks
+document.addEventListener('click', (e) => {
+  if (e.target.closest('#withdrawRevenueBtn')) {
+    e.preventDefault();
+    processWithdraw();
+  }
+});
+
+document.addEventListener('input', (e) => {
+  if (e.target.id === 'withdrawAmountInput') clearWithdrawError();
+});
+
+document.addEventListener('keydown', (e) => {
+  if (e.target.id === 'withdrawAmountInput' && e.key === 'Enter') processWithdraw();
+});
+
+document.addEventListener('click', (e) => {
+  if (e.target.closest('#openMonetizationBtn') || e.target.closest('.monetization-card')) {
+    setTimeout(async () => { await updateRevenueDisplay(); }, 500);
+  }
+});
+
+const _origUpdateUI = updateUI;
+updateUI = function() {
+  _origUpdateUI();
+  setTimeout(async () => {
+    if (state.channel) await updateRevenueDisplay();
+  }, 300);
+};
+
+setInterval(() => {
+  if (state.loggedIn && state.channel) {
+    const page = document.getElementById('monetizationPage');
+    if (page && page.classList.contains('open')) updateRevenueDisplay();
+  }
+}, 30000);
