@@ -3807,7 +3807,7 @@ async function updateMonetizationUI() {
   if (totalRevenue) totalRevenue.textContent = revenue.total.toFixed(2);
   if (qualifiedViewsRevenue) qualifiedViewsRevenue.textContent = totalViews.toLocaleString();
   if (isAdmin) {
-    if (viewsProgress) viewsProgress.textContent = `1000/1000`;
+    if (viewsProgress) viewsProgress.textContent = `1000000/1000000`;
     if (watchProgress) watchProgress.textContent = `4000/4000`;
     if (subsProgress) subsProgress.textContent = `1000/1000`;
     if (check1) check1.className = 'fas fa-check-circle ci-check';
@@ -3822,10 +3822,10 @@ async function updateMonetizationUI() {
     updateAnalyticsDisplay(totalViews, watchHours, subs, revenue);
     return;
   }
-  if (viewsProgress) viewsProgress.textContent = `${totalViews}/1000`;
+  if (viewsProgress) viewsProgress.textContent = `${totalViews}/1000000`;
   if (watchProgress) watchProgress.textContent = `${watchHours}/4000`;
   if (subsProgress) subsProgress.textContent = `${subs}/1000`;
-  const vDone = totalViews >= 1000;
+  const vDone = totalViews >= 1000000;
   const wDone = watchHours >= 4000;
   const sDone = subs >= 1000;
   if (check1) check1.className = 'fas fa-check-circle ci-check' + (vDone ? '' : ' pending');
