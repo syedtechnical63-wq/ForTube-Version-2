@@ -807,27 +807,55 @@ async function generateThumbnailFromVideo(videoBlob, seekTime = 1) {
 // ============================================================
 async function checkSession() {
   try {
+    // 🆕 Show a temporary loading screen while checking session
+    if (loginGate) loginGate.classList.add('hide');
+    
     const { data: { session } } = await supabaseClient.auth.getSession();
+    
     if (session && session.user) {
       state.loggedIn = true;
       state.user = session.user;
       state.email = session.user.email;
+      
+      // Restore preferences from localStorage
+      try {
+        const savedPrefs = localStorage.getItem('fortube_prefs');
+        if (savedPrefs) state.preferences = { ...state.preferences, ...JSON.parse(savedPrefs) };
+      } catch (e) {}
+      
       await loadUserChannel();
-      if (loginGate) loginGate.classList.add('hide');
       updateUI();
       await loadFeedFromSupabase();
       await loadNotifications();
       await checkActiveLiveStream();
+      
       const banned = await checkUserBanStatus();
       if (banned) {
         await supabaseClient.auth.signOut();
         state.loggedIn = false;
         if (loginGate) loginGate.classList.remove('hide');
+        return;
       }
+      
+      // 🆕 Restore last page/filter if user refreshed
+      const lastFilter = localStorage.getItem('fortube_last_filter');
+      if (lastFilter && lastFilter !== 'home') {
+        currentFilter = lastFilter;
+        if (lastFilter === 'shorts') {
+          renderShortsFeed();
+          document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+          document.querySelector('.nav-item[data-tab="shorts"]')?.classList.add('active');
+        } else {
+          renderFeed('', lastFilter);
+        }
+      }
+      
     } else {
+      // No session — show login gate
       if (loginGate) loginGate.classList.remove('hide');
     }
   } catch (e) {
+    console.error('Session check error:', e);
     if (loginGate) loginGate.classList.remove('hide');
   }
 }
@@ -1320,38 +1348,73 @@ function setupShortsAutoPlay() {
   if (!container) return;
   const videos = container.querySelectorAll('.short-video');
   
+  // 🆕 FIX: Ensure loop attribute is set on every short video
+  videos.forEach(v => {
+    v.loop = true;
+    v.setAttribute('loop', '');
+    v.playsInline = true;
+    v.setAttribute('playsinline', '');
+    v.setAttribute('webkit-playsinline', '');
+  });
+  
   const observer = new IntersectionObserver((entries) => {
     entries.forEach(entry => {
       const video = entry.target;
       const overlay = video.parentElement.querySelector('.short-play-overlay');
+      
       if (entry.isIntersecting && entry.intersectionRatio > 0.6) {
+        // Pause all other videos
         videos.forEach(v => {
-          if (v !== video) {
+          if (v !== video && !v.paused) {
             v.pause();
             const o = v.parentElement.querySelector('.short-play-overlay');
             if (o) o.style.opacity = '1';
           }
         });
-        video.play().then(() => { if (overlay) overlay.style.opacity = '0'; }).catch(() => {});
+        
+        // Play current video
+        if (video.paused) {
+          video.currentTime = video.currentTime; // keep position
+          video.play()
+            .then(() => { if (overlay) overlay.style.opacity = '0'; })
+            .catch(() => {
+              // Autoplay blocked — show overlay
+              if (overlay) overlay.style.opacity = '1';
+            });
+        }
       } else {
-        video.pause();
-        if (overlay) overlay.style.opacity = '1';
+        // Pause when out of view
+        if (!video.paused) {
+          video.pause();
+          if (overlay) overlay.style.opacity = '1';
+        }
       }
     });
-  }, { root: container, threshold: [0.6] });
+  }, { 
+    root: container, 
+    threshold: [0.6],
+    rootMargin: '0px'
+  });
   
   videos.forEach(v => observer.observe(v));
   
+  // Progress bars
   const progressBars = container.querySelectorAll('.short-progress-fill');
   videos.forEach((video, idx) => {
     video.addEventListener('timeupdate', () => {
-      if (progressBars[idx] && video.duration) {
-        progressBars[idx].style.width = (video.currentTime / video.duration * 100) + '%';
+      if (progressBars[idx] && video.duration && isFinite(video.duration)) {
+        const pct = (video.currentTime / video.duration) * 100;
+        progressBars[idx].style.width = pct + '%';
       }
+    });
+    
+    // 🆕 FIX: Prevent scroll jump on video end (backup safety)
+    video.addEventListener('ended', () => {
+      video.currentTime = 0;
+      video.play().catch(() => {});
     });
   });
 }
-
 // ============================================================
 // 🔥 WATCH PAGE
 // ============================================================
@@ -1359,22 +1422,22 @@ async function openWatchPage(vid) {
   if (!vid || !watchPage || !watchBody) return;
   if (watchHeaderTitle) watchHeaderTitle.textContent = vid.title;
 
+  // 🆕 FAST LOAD: Use URL directly. Fetch blob in background only.
   let videoUrl = vid.video_url;
-
-  try {
-    const cachedBlob = await getVideoFromIDB(vid.id);
-    if (cachedBlob) { videoUrl = URL.createObjectURL(cachedBlob); }
-    else if (vid.video_url) {
-      try {
-        const resp = await fetch(vid.video_url);
-        if (resp.ok) {
-          const blob = await resp.blob();
-          await saveVideoToIDB(vid.id, blob);
-          videoUrl = URL.createObjectURL(blob);
-        }
-      } catch (e) { videoUrl = vid.video_url; }
+  
+  // Check IDB cache in background (non-blocking)
+  getVideoFromIDB(vid.id).then(blob => {
+    if (blob) {
+      const videoEl = document.getElementById('watchVideoElement');
+      if (videoEl) {
+        const t = videoEl.currentTime;
+        const wasPlaying = !videoEl.paused;
+        videoEl.src = URL.createObjectURL(blob);
+        videoEl.currentTime = t;
+        if (wasPlaying) videoEl.play().catch(()=>{});
+      }
     }
-  } catch (e) {}
+  }).catch(()=>{});
 
   const ch = state.allChannels.find(c => c.username === vid.channel_username) || {};
   const isMine = vid.owner_id === state.user?.id;
@@ -4116,12 +4179,21 @@ document.querySelectorAll('.nav-item').forEach(item => {
     document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
     this.classList.add('active');
     const tab = this.dataset.tab;
-    if (tab === 'home') { currentFilter = 'home'; renderFeed('', 'home'); }
-    else if (tab === 'shorts') { currentFilter = 'shorts'; renderShortsFeed(); }
+    if (tab === 'home') { 
+      currentFilter = 'home'; 
+      renderFeed('', 'home'); 
+      localStorage.setItem('fortube_last_filter', 'home');
+    }
+    else if (tab === 'shorts') { 
+      currentFilter = 'shorts'; 
+      renderShortsFeed(); 
+      localStorage.setItem('fortube_last_filter', 'shorts');
+    }
     else if (tab === 'subs') {
       currentFilter = 'subs';
       renderFeed('', 'subs');
       openSubscriptions();
+      localStorage.setItem('fortube_last_filter', 'subs');
     }
   });
 });
