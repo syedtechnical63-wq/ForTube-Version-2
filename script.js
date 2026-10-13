@@ -3775,21 +3775,17 @@ async function renderProfilePage() {
   }
   // 🆕 CHANNEL NAME NOW ON BANNER (GREEN COLOR)
   body.innerHTML = `
-    <div class="profile-banner-new">
+     <div class="profile-banner-new">
       ${bannerHTML}
-      <div class="profile-channel-info-overlay">
-        <div class="profile-channel-name-overlay">
-          ${verifiedBadge} ${escapeHTML(ch.name)}
-        </div>
-        <div class="profile-channel-handle-overlay">
-          ${escapeHTML(ch.username)} · ${escapeHTML(ch.category || '')}
-        </div>
-      </div>
     </div>
     <div class="profile-header-row">
       <div class="profile-avatar-new">${avatarHTML}</div>
       <div class="profile-header-info">
-        <div class="profile-stats-new" style="margin-top:0;">
+        <div class="profile-name-new">
+          ${verifiedBadge} ${escapeHTML(ch.name)}
+        </div>
+        <div class="profile-handle-new">${escapeHTML(ch.username)} · ${escapeHTML(ch.category || '')}</div>
+        <div class="profile-stats-new">
           <span><strong>${ch.subscribers_count || 0}</strong> subscribers</span>
           <span><strong>${myVideos.length}</strong> videos</span>
         </div>
