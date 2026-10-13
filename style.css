@@ -4590,7 +4590,7 @@ body.dark-mode .filter-chip.active {
 .profile-channel-name-overlay {
   font-size: 1.1rem;
   font-weight: 800;
-  color: #00ff00;
+  color: #FFFFE0;
   text-shadow: 0 2px 8px rgba(0,0,0,0.6);
   display: flex;
   align-items: center;
