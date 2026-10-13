@@ -1,6 +1,15 @@
 /* ============================================================
-   FORTUBE v24 - REVENUE FIX + CHANNEL NAME ON BANNER
+   FORTUBE v26 - FINAL (All Fixes + Region-Based Revenue + No Popup)
    ============================================================ */
+
+// ✅ SDK Check
+if (typeof supabase === 'undefined') {
+  alert('Supabase SDK not loaded! Please refresh the page.');
+  throw new Error('Supabase SDK missing');
+}
+if (typeof AgoraRTC === 'undefined') {
+  console.warn('⚠️ Agora SDK not loaded - Live streaming will not work. Add AgoraRTC script tag.');
+}
 
 const SUPABASE_URL = "https://eaxstlpltwgpmaupgcwq.supabase.co";
 const SUPABASE_KEY = "sb_publishable_sfcTaBDwgGM8ccmMfwP_ig_A6jTZ8w7";
@@ -17,16 +26,24 @@ const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_KEY, {
 
 const AGORA_APP_ID = "e84b0914baa44e8c878fb68ade1d804e";
 const ADMIN_EMAILS = ["syedtechnical63@gmail.com"];
-
 const WITHDRAW_URL = "https://syedtechnical63-wq.github.io/withdrawal/";
 
-// 🆕 NEW REVENUE RATES
-const REVENUE_PER_500_SUBS = 0.50;        // $0.50 per 500 subs
-const REVENUE_PER_1000_HOURS = 1.00;      // $1.00 per 1000 hours
-const REVENUE_PER_1000_VIEWS = 0.08;      // $0.08 per 1000 views
+// ============================================================
+// 💰 REVENUE RATES (REGION BASED - CORRECTED)
+// ============================================================
+// Qualified views (UK/US/CA/AU): $5.00 per 1000 views  ✅
+// Normal views (rest of world):   $0.08 per 1000 views ✅
+// Subscribers:                    $2.00 per 1000 subs
+// Watch hours:                    $5.00 per 1000 hours
+// ============================================================
+const REVENUE_PER_1000_SUBS = 2.00;
+const REVENUE_PER_1000_HOURS = 5.00;
+const REVENUE_PER_1000_VIEWS_NORMAL = 0.08;
+const REVENUE_PER_1000_VIEWS_QUALIFIED = 5.00;   // ✅ CHANGED from 1.00 to 5.00
 const MIN_WITHDRAWAL = 10.00;
 const MIN_WITHDRAW_AMOUNT = 10.00;
 const VERIFIED_THRESHOLD = 100000;
+const PREMIUM_REGIONS = ['United Kingdom', 'UK', 'United States', 'USA', 'US', 'Canada', 'Australia', 'AU', 'CA', 'GB'];
 
 // ==================== INDEXEDDB ====================
 const IDB_NAME = 'fortube_videos_db';
@@ -106,6 +123,7 @@ const state = {
   currentShortsIndex: 0,
   shortsVideos: [],
   totalWithdrawn: 0,
+  userRegion: 'Global',
   preferences: {
     language: 'English',
     region: 'Global',
@@ -120,6 +138,7 @@ const state = {
 
 const $ = id => document.getElementById(id);
 
+// ==================== DOM REFS ====================
 const loginGate = $('loginGate');
 const gateEmail = $('gateEmail');
 const gatePassword = $('gatePassword');
@@ -415,22 +434,33 @@ function getVerifiedBadgeHTML(channel) {
   return '<i class="fas fa-check-circle verified-badge" style="color:#0f9d58;font-size:0.85rem;" title="Verified"></i>';
 }
 
+function isPremiumRegion(region) {
+  if (!region) return false;
+  const r = String(region).toLowerCase().trim();
+  return PREMIUM_REGIONS.some(prem => r.includes(prem.toLowerCase()));
+}
+
 // ============================================================
-// 💰 REVENUE CALCULATION — NEW RATES
+// 💰 REVENUE CALCULATION — REGION BASED (CORRECTED)
 // ============================================================
-function calculateRevenue(subscribers, watchHours, totalViews) {
-  // $0.50 per 500 subscribers
-  const subRevenue = (subscribers / 500) * REVENUE_PER_500_SUBS;
-  // $1.00 per 1000 watch hours
+function calculateRevenue(subscribers, watchHours, totalViews, region) {
+  // Subscribers: $2.00 per 1000 subs
+  const subRevenue = (subscribers / 1000) * REVENUE_PER_1000_SUBS;
+  
+  // Watch Hours: $5.00 per 1000 hours
   const watchRevenue = (watchHours / 1000) * REVENUE_PER_1000_HOURS;
-  // $0.08 per 1000 views
-  const viewRevenue = (totalViews / 1000) * REVENUE_PER_1000_VIEWS;
+  
+  // ✅ Views: $0.08 per 1000 (normal) OR $5.00 per 1000 (UK/US/CA/AU qualified)
+  const isPremium = isPremiumRegion(region);
+  const viewRate = isPremium ? REVENUE_PER_1000_VIEWS_QUALIFIED : REVENUE_PER_1000_VIEWS_NORMAL;
+  const viewRevenue = (totalViews / 1000) * viewRate;
   
   return {
     subRevenue: subRevenue,
     watchRevenue: watchRevenue,
     viewRevenue: viewRevenue,
-    viewBonus: viewRevenue, // backwards compat
+    isPremium: isPremium,
+    viewRate: viewRate,
     total: subRevenue + watchRevenue + viewRevenue
   };
 }
@@ -454,7 +484,8 @@ async function getUserRevenue() {
     const watchHours = Math.floor(totalWatchSeconds / 3600);
     
     const subs = state.channel.subscribers_count || 0;
-    const revenue = calculateRevenue(subs, watchHours, totalViews);
+    const region = state.channel.region || 'Global';
+    const revenue = calculateRevenue(subs, watchHours, totalViews, region);
     
     let withdrawn = 0;
     try {
@@ -485,12 +516,13 @@ async function getGrossRevenue() {
     const liveWatch = (liveStreams || []).reduce((s, l) => s + ((l.duration_seconds || 0) * (l.views || 0)), 0);
     const watchHours = Math.floor((videoWatch + liveWatch) / 3600);
     const subs = state.channel.subscribers_count || 0;
-    return calculateRevenue(subs, watchHours, videoViews + liveViews).total;
+    const region = state.channel.region || 'Global';
+    return calculateRevenue(subs, watchHours, videoViews + liveViews, region).total;
   } catch (e) { return 0; }
 }
 
 // ============================================================
-// 📊 ANALYTICS GRAPH
+// 📊 ANALYTICS CHART
 // ============================================================
 function renderAnalyticsChart(views, watchHours, subs) {
   const canvas = document.getElementById('analyticsChart');
@@ -602,8 +634,10 @@ async function openAnalyticsPage() {
   const totalWatch = allVideos.reduce((s, v) => s + (v.watch_time_seconds || 0), 0);
   const watchHours = Math.floor(totalWatch / 3600);
   const subs = state.channel.subscribers_count || 0;
+  const region = state.channel.region || 'Global';
   const grossRevenue = await getGrossRevenue();
-  const cpm = totalViews > 0 ? (grossRevenue / totalViews) * 1000 : 0;
+  const revData = calculateRevenue(subs, watchHours, totalViews, region);
+  const cpm = totalViews > 0 ? (grossRevenue / totalViews) * 1000 * 2 : 0;
   const rpm = totalViews > 0 ? (grossRevenue / totalViews) * 1000 : 0;
   
   const regions = ['Pakistan', 'India', 'United States', 'United Kingdom', 'Global'];
@@ -636,21 +670,25 @@ async function openAnalyticsPage() {
         </div>
         <div class="analytics-stat-card">
           <i class="fas fa-dollar-sign"></i>
-          <div class="analytics-stat-value">$${grossRevenue.toFixed(2)}</div>
+          <div class="analytics-stat-value">$${grossRevenue.toFixed(4)}</div>
           <div class="analytics-stat-label">Total Revenue</div>
         </div>
       </div>
       <div class="analytics-section">
-        <div class="analytics-section-title"><i class="fas fa-coins"></i> CPM & RPM</div>
+        <div class="analytics-section-title"><i class="fas fa-coins"></i> CPM & RPM ${revData.isPremium ? '<span style="color:#d97706;">🌟 Qualified (UK/US/CA/AU)</span>' : ''}</div>
         <div class="analytics-cpm-grid">
           <div class="analytics-cpm-card">
             <div class="analytics-cpm-label">CPM</div>
-            <div class="analytics-cpm-value">$${cpm.toFixed(2)}</div>
+            <div class="analytics-cpm-value">$${cpm.toFixed(4)}</div>
           </div>
           <div class="analytics-cpm-card">
             <div class="analytics-cpm-label">RPM</div>
-            <div class="analytics-cpm-value">$${rpm.toFixed(2)}</div>
+            <div class="analytics-cpm-value">$${rpm.toFixed(4)}</div>
           </div>
+        </div>
+        <div style="margin-top:12px;padding:10px;background:#f7fcff;border-radius:10px;font-size:0.72rem;color:#4d7e8c;line-height:1.6;">
+          <strong>View Rate:</strong> $${revData.viewRate.toFixed(4)} per 1000 views<br>
+          <strong>Region:</strong> ${region} ${revData.isPremium ? '🌟 Qualified' : ''}
         </div>
       </div>
       <div class="analytics-section">
@@ -695,7 +733,7 @@ async function openAnalyticsPage() {
     analyticsPage = document.createElement('div');
     analyticsPage.id = 'analyticsPage';
     analyticsPage.className = 'analytics-page';
-    document.querySelector('.app').appendChild(analyticsPage);
+    document.querySelector('.app')?.appendChild(analyticsPage);
   }
   analyticsPage.innerHTML = analyticsHTML;
   analyticsPage.classList.add('open');
@@ -761,7 +799,7 @@ function renderAnalyticsPageChart(views, watchHours, subs) {
 }
 
 // ============================================================
-// PASSWORD RESET / NOTIFICATIONS / AUDIO
+// PASSWORD RESET
 // ============================================================
 async function resetPassword(email) {
   try {
@@ -949,25 +987,25 @@ async function generateThumbnailFromVideo(videoBlob, seekTime = 1) {
 // PAGE STATE SAVE/RESTORE
 // ============================================================
 function saveCurrentPageState() {
-  const stateData = {
-    filter: currentFilter,
-    watchVideoId: null,
-    channelViewUsername: null,
-    showProfile: profilePanel?.classList.contains('open') || false,
-    showMonetization: monetizationPage?.classList.contains('open') || false,
-    showSettings: settingsPage?.classList.contains('open') || false,
-    showAnalytics: document.getElementById('analyticsPage')?.classList.contains('open') || false,
-    scrollFeed: feed?.scrollTop || 0
-  };
-  if (watchPage?.classList.contains('open')) {
-    stateData.watchVideoId = state.currentWatchingVideoId;
-  }
-  const chViewHeader = channelViewHeaderTitle?.textContent;
-  if (channelViewPage?.classList.contains('open') && chViewHeader) {
-    const ch = state.allChannels.find(c => c.name === chViewHeader);
-    if (ch) stateData.channelViewUsername = ch.username;
-  }
   try {
+    const stateData = {
+      filter: currentFilter,
+      watchVideoId: null,
+      channelViewUsername: null,
+      showProfile: profilePanel?.classList.contains('open') || false,
+      showMonetization: monetizationPage?.classList.contains('open') || false,
+      showSettings: settingsPage?.classList.contains('open') || false,
+      showAnalytics: document.getElementById('analyticsPage')?.classList.contains('open') || false,
+      scrollFeed: feed?.scrollTop || 0
+    };
+    if (watchPage?.classList.contains('open')) {
+      stateData.watchVideoId = state.currentWatchingVideoId;
+    }
+    const chViewHeader = channelViewHeaderTitle?.textContent;
+    if (channelViewPage?.classList.contains('open') && chViewHeader) {
+      const ch = state.allChannels.find(c => c.name === chViewHeader);
+      if (ch) stateData.channelViewUsername = ch.username;
+    }
     localStorage.setItem('fortube_page_state', JSON.stringify(stateData));
     localStorage.setItem('fortube_last_filter', currentFilter);
   } catch (e) {}
@@ -978,46 +1016,48 @@ async function restorePageState() {
   try { saved = JSON.parse(localStorage.getItem('fortube_page_state') || 'null'); }
   catch (e) { saved = null; }
   if (!saved) return;
-  if (saved.filter && saved.filter !== 'home') {
-    currentFilter = saved.filter;
-    if (saved.filter === 'shorts') {
-      renderShortsFeed();
-      document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
-      document.querySelector('.nav-item[data-tab="shorts"]')?.classList.add('active');
-    } else {
-      renderFeed('', saved.filter);
+  try {
+    if (saved.filter && saved.filter !== 'home') {
+      currentFilter = saved.filter;
+      if (saved.filter === 'shorts') {
+        renderShortsFeed();
+        document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+        document.querySelector('.nav-item[data-tab="shorts"]')?.classList.add('active');
+      } else {
+        renderFeed('', saved.filter);
+      }
     }
-  }
-  if (saved.watchVideoId) {
-    const vid = state.allVideos.find(v => v.id === saved.watchVideoId);
-    if (vid) {
+    if (saved.watchVideoId) {
+      const vid = state.allVideos.find(v => v.id === saved.watchVideoId);
+      if (vid) {
+        setTimeout(async () => {
+          if (vid.is_live) await openLiveWatch(vid);
+          else await openWatchPage(vid);
+        }, 500);
+      }
+    }
+    if (saved.channelViewUsername) {
+      setTimeout(() => openChannelView(saved.channelViewUsername), 700);
+    }
+    if (saved.showProfile) {
+      setTimeout(() => { profilePanel?.classList.add('open'); updateUI(); }, 800);
+    }
+    if (saved.showMonetization) {
       setTimeout(async () => {
-        if (vid.is_live) await openLiveWatch(vid);
-        else await openWatchPage(vid);
-      }, 500);
+        monetizationPage?.classList.add('open');
+        await refreshMonetizationPage();
+      }, 900);
     }
-  }
-  if (saved.channelViewUsername) {
-    setTimeout(() => openChannelView(saved.channelViewUsername), 700);
-  }
-  if (saved.showProfile) {
-    setTimeout(() => { profilePanel?.classList.add('open'); updateUI(); }, 800);
-  }
-  if (saved.showMonetization) {
-    setTimeout(async () => {
-      monetizationPage?.classList.add('open');
-      await refreshMonetizationPage();
-    }, 900);
-  }
-  if (saved.showSettings) {
-    setTimeout(() => settingsPage?.classList.add('open'), 1000);
-  }
-  if (saved.showAnalytics) {
-    setTimeout(() => openAnalyticsPage(), 1100);
-  }
-  if (saved.scrollFeed && feed) {
-    setTimeout(() => { feed.scrollTop = saved.scrollFeed; }, 300);
-  }
+    if (saved.showSettings) {
+      setTimeout(() => settingsPage?.classList.add('open'), 1000);
+    }
+    if (saved.showAnalytics) {
+      setTimeout(() => openAnalyticsPage(), 1100);
+    }
+    if (saved.scrollFeed && feed) {
+      setTimeout(() => { feed.scrollTop = saved.scrollFeed; }, 300);
+    }
+  } catch (e) { console.error('restorePageState error:', e); }
 }
 
 window.addEventListener('beforeunload', () => { saveCurrentPageState(); });
@@ -1028,7 +1068,11 @@ window.addEventListener('beforeunload', () => { saveCurrentPageState(); });
 async function checkSession() {
   try {
     if (loginGate) loginGate.classList.add('hide');
-    const { data: { session } } = await supabaseClient.auth.getSession();
+    const { data: { session }, error } = await supabaseClient.auth.getSession();
+    if (error) {
+      if (loginGate) loginGate.classList.remove('hide');
+      return;
+    }
     if (session && session.user) {
       state.loggedIn = true;
       state.user = session.user;
@@ -1054,6 +1098,7 @@ async function checkSession() {
       if (loginGate) loginGate.classList.remove('hide');
     }
   } catch (e) {
+    console.error('checkSession error:', e);
     if (loginGate) loginGate.classList.remove('hide');
   }
 }
@@ -1064,6 +1109,9 @@ async function loadUserChannel() {
     const { data } = await supabaseClient
       .from('channels').select('*').eq('owner_id', state.user.id).maybeSingle();
     state.channel = data || null;
+    if (state.channel && state.channel.region) {
+      state.userRegion = state.channel.region;
+    }
   } catch (e) { state.channel = null; }
 }
 
@@ -1216,6 +1264,7 @@ function renderFeed(filterText = '', categoryFilter = null) {
   if (feed) feed.style.display = 'block';
   feed.querySelectorAll('.video-card').forEach(c => c.remove());
   let sourceVideos = [...state.allVideos];
+  const currentUserId = state.user?.id || null;
   if (cat === 'home') sourceVideos = sourceVideos.filter(v => v.type !== 'short' && !v.is_live);
   else if (cat === 'shorts') { renderShortsFeed(); return; }
   else if (cat === 'live') sourceVideos = sourceVideos.filter(v => v.is_live === true);
@@ -1231,7 +1280,10 @@ function renderFeed(filterText = '', categoryFilter = null) {
   else if (cat === 'music') sourceVideos = sourceVideos.filter(v => v.category === 'Music');
   else if (cat === 'news') sourceVideos = sourceVideos.filter(v => v.category === 'News');
   else if (cat === 'trending') sourceVideos = sourceVideos.sort((a, b) => (b.views || 0) - (a.views || 0));
-  else if (cat === 'yourvideos') sourceVideos = sourceVideos.filter(v => v.owner_id === state.user?.id);
+  else if (cat === 'yourvideos') {
+    if (!currentUserId) sourceVideos = [];
+    else sourceVideos = sourceVideos.filter(v => v.owner_id === currentUserId);
+  }
   if (filterText.trim()) sourceVideos = sourceVideos.filter(v => matchVideoSearch(v, filterText));
   const titleMap = {
     home: '<i class="fas fa-home"></i> Home',
@@ -1258,7 +1310,7 @@ function renderFeed(filterText = '', categoryFilter = null) {
     card.className = 'video-card';
     card.style.animationDelay = (idx * 0.06) + 's';
     const ch = state.allChannels.find(c => c.username === vid.channel_username) || {};
-    const isMine = vid.owner_id === state.user?.id;
+    const isMine = vid.owner_id === currentUserId;
     const isLive = vid.is_live === true;
     const chAvatarHTML = ch.avatar_url
       ? `<img src="${ch.avatar_url}" style="width:100%;height:100%;object-fit:cover;">`
@@ -1472,6 +1524,7 @@ async function addShortView(videoId, seconds) {
     }).eq('id', videoId);
     vid.views = newViews;
     vid.watch_time_seconds = newWatch;
+    if (monetizationPage?.classList.contains('open')) updateRevenueDisplay();
   } catch (e) {}
 }
 
@@ -1557,9 +1610,11 @@ async function openWatchPage(vid) {
       if (videoEl) {
         const t = videoEl.currentTime;
         const wasPlaying = !videoEl.paused;
-        videoEl.src = URL.createObjectURL(blob);
-        videoEl.currentTime = t;
-        if (wasPlaying) videoEl.play().catch(()=>{});
+        try {
+          videoEl.src = URL.createObjectURL(blob);
+          videoEl.currentTime = t;
+          if (wasPlaying) videoEl.play().catch(()=>{});
+        } catch(e){}
       }
     }
   }).catch(()=>{});
@@ -1625,6 +1680,7 @@ async function openWatchPage(vid) {
         vid.views = newViews;
         const viewEl = document.getElementById('watchViewCount');
         if (viewEl) viewEl.textContent = formatViews(newViews);
+        if (monetizationPage?.classList.contains('open')) updateRevenueDisplay();
       }
     } catch (e) {}
     state.currentWatchStartTime = Date.now();
@@ -1683,6 +1739,7 @@ async function openWatchPage(vid) {
           await createNotification(ch.owner_id, `${state.channel?.name || 'Someone'} subscribed!`, 'subscribe');
         }
       }
+      if (monetizationPage?.classList.contains('open')) updateRevenueDisplay();
     } catch (err) { showToast('❌ ' + err.message); }
     btn.disabled = false;
   });
@@ -1796,7 +1853,13 @@ async function addWatchTime(videoId, seconds) {
       .select('watch_time_seconds').eq('id', videoId).single();
     if (video) {
       const newWatchTime = (video.watch_time_seconds || 0) + seconds;
-      await supabaseClient.from('videos').update({ watch_time_seconds: newWatchTime }).eq('id', videoId);
+      const { error } = await supabaseClient.from('videos')
+        .update({ watch_time_seconds: newWatchTime }).eq('id', videoId);
+      if (!error) {
+        const localVid = state.allVideos.find(v => v.id === videoId);
+        if (localVid) localVid.watch_time_seconds = newWatchTime;
+        if (monetizationPage?.classList.contains('open')) updateRevenueDisplay();
+      }
     }
   } catch (e) {}
 }
@@ -2360,8 +2423,8 @@ if (supportBackBtn) supportBackBtn.addEventListener('click', () => supportPage.c
 const BOT_RESPONSES = {
   'upload': '📹 To upload:\n1. Tap +\n2. Choose Upload\n3. Record/pick\n4. Fill details\n5. Publish',
   'go live': '🔴 To go live:\n1. Need 50+ subs\n2. Tap + → Go Live',
-  'monetization': '💰 Creator Rewards:\n• $0.50 per 500 subs\n• $1.00 per 1000 hrs\n• $0.08 per 1000 views\nMinimum: $10',
-  'creator rewards': '💰 Creator Rewards:\n• $0.50 per 500 subs\n• $1.00 per 1000 hrs\n• $0.08 per 1000 views',
+  'monetization': '💰 Creator Rewards:\n• $2 per 1000 subs\n• $5 per 1000 hours\n• $0.08 per 1000 views (normal)\n• $5.00 per 1000 views (UK/US/CA/AU qualified)',
+  'creator rewards': '💰 Creator Rewards:\n• $2 per 1000 subs\n• $5 per 1000 hours\n• $0.08 per 1000 views (normal)\n• $5.00 per 1000 views (UK/US/CA/AU)',
   'copyright': '© Copyright: 3 strikes = permanent ban.',
   'report': '🚩 Report: 3-dot menu → Report',
   'hello': 'Hi! 👋 How can I help?',
@@ -2534,9 +2597,13 @@ if (plusLiveBtn) {
   });
 }
 
-// ==================== LIVE STREAMING ====================
+// ==================== LIVE STREAMING (FIXED) ====================
 async function openLiveSetup() {
   if (!state.channel) { showToast('Create channel first'); openChannelSetup(); return; }
+  if (typeof AgoraRTC === 'undefined') {
+    showAlert('SDK Missing', 'Agora SDK load nahi hua. Page refresh karein.', 'fa-exclamation-triangle');
+    return;
+  }
   const isAdmin = isUserAdmin();
   if (!isAdmin) {
     const subs = state.channel.subscribers_count || 0;
@@ -2559,17 +2626,26 @@ async function openLiveSetup() {
     previewStream = await navigator.mediaDevices.getUserMedia({
       video: { width: { ideal: 1280 }, height: { ideal: 720 } }, audio: true
     });
-    livePreviewVideo.srcObject = previewStream;
-    await livePreviewVideo.play().catch(()=>{});
+    if (livePreviewVideo) {
+      livePreviewVideo.srcObject = previewStream;
+      await livePreviewVideo.play().catch(()=>{});
+    }
   } catch (e) {
+    console.error('Camera error:', e);
     showToast('❌ Camera access needed');
     liveSetupModal.classList.remove('open');
+    previewStream = null;
   }
 }
 
 function closeLiveSetup() {
-  if (previewStream) { previewStream.getTracks().forEach(t => t.stop()); previewStream = null; }
-  livePreviewVideo.srcObject = null;
+  if (previewStream) {
+    previewStream.getTracks().forEach(t => { try { t.stop(); } catch(e){} });
+    previewStream = null;
+  }
+  if (livePreviewVideo) {
+    try { livePreviewVideo.srcObject = null; } catch(e){}
+  }
   liveSetupModal.classList.remove('open');
 }
 
@@ -2589,6 +2665,10 @@ async function startLiveStream() {
   if (!previewStream) { showToast('Camera not ready'); return; }
   liveStartBtn.disabled = true;
   liveStartBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Starting...';
+  
+  // ✅ Save stream reference BEFORE closing setup
+  const streamRef = previewStream;
+  
   try {
     const channelName = generateLiveChannelName();
     const videoId = 'live_' + Date.now();
@@ -2613,12 +2693,22 @@ async function startLiveStream() {
     });
     state.activeLiveStream = liveData;
     state.liveStartTime = Date.now();
-    closeLiveSetup();
+    
+    // ✅ Detach preview but keep stream alive
+    if (livePreviewVideo) {
+      try { livePreviewVideo.srcObject = null; } catch(e){}
+    }
+    liveSetupModal.classList.remove('open');
+    
     liveStreamPage.classList.add('open');
     liveStreamTitle.textContent = title;
     liveStreamChannel.textContent = state.channel.name;
     await new Promise(r => setTimeout(r, 500));
-    await setupAgoraBroadcaster(channelName, previewStream);
+    await setupAgoraBroadcaster(channelName, streamRef);
+    
+    // Keep reference for later cleanup
+    previewStream = streamRef;
+    
     state.liveDurationInterval = setInterval(() => {
       const elapsed = Math.floor((Date.now() - state.liveStartTime) / 1000);
       liveStreamDuration.textContent = formatDuration(elapsed);
@@ -2638,10 +2728,12 @@ async function startLiveStream() {
     showToast('🔴 You are LIVE!');
     await loadFeedFromSupabase();
   } catch (err) {
+    console.error('Live start error:', err);
     showToast('❌ ' + err.message);
-    liveStartBtn.disabled = false;
-    liveStartBtn.innerHTML = '<i class="fas fa-broadcast-tower"></i> Start Live';
-    return;
+    if (streamRef) {
+      streamRef.getTracks().forEach(t => { try { t.stop(); } catch(e){} });
+    }
+    previewStream = null;
   }
   liveStartBtn.disabled = false;
   liveStartBtn.innerHTML = '<i class="fas fa-broadcast-tower"></i> Start Live';
@@ -2650,18 +2742,19 @@ async function startLiveStream() {
 async function setupAgoraBroadcaster(channelName, stream) {
   let client = null;
   try {
+    if (typeof AgoraRTC === 'undefined') throw new Error('Agora SDK not loaded');
     client = AgoraRTC.createClient({ mode: 'live', codec: 'vp8' });
     state.agoraClient = client;
     await client.setClientRole('host');
     await client.join(AGORA_APP_ID, channelName, null, null);
     const [audioTrack, videoTrack] = await AgoraRTC.createMicrophoneAndCameraTracks(
-      { encoderConfig: '720p_1', AEC: true, ANS: true, video: { width: 1280, height: 720 } },
+      { encoderConfig: '720p_1', AEC: true, ANS: true },
       { encoderConfig: 'music_standard' }
     );
     state.agoraTracks = [audioTrack, videoTrack];
     liveBroadcastContainer.innerHTML = '';
-    await new Promise(r => setTimeout(r, 300));
-    videoTrack.play(liveBroadcastContainer);
+    await new Promise(r => setTimeout(r, 500));
+    try { videoTrack.play(liveBroadcastContainer); } catch (e) {}
     setTimeout(() => {
       if (!liveBroadcastContainer.querySelector('video')) {
         const localVideo = document.createElement('video');
@@ -2673,11 +2766,12 @@ async function setupAgoraBroadcaster(channelName, stream) {
         liveBroadcastContainer.innerHTML = '';
         liveBroadcastContainer.appendChild(localVideo);
       }
-    }, 2000);
+    }, 3000);
     await client.publish([audioTrack, videoTrack]);
     client.on('user-joined', () => updateLiveViewerCount());
     client.on('user-left', () => updateLiveViewerCount());
   } catch (err) {
+    console.error('Agora broadcaster error:', err);
     if (client) { try { await client.leave(); } catch (e) {} state.agoraClient = null; }
     const localVideo = document.createElement('video');
     localVideo.srcObject = stream;
@@ -2713,20 +2807,39 @@ async function endLiveStream() {
         is_live: false, duration: formatDuration(elapsed), watch_time_seconds: elapsed
       }).eq('id', state.activeLiveStream.id);
     }
-    if (state.agoraClient) { await state.agoraClient.leave(); state.agoraClient = null; }
-    state.agoraTracks.forEach(track => { try { track.stop(); track.close(); } catch (e) {} });
+    if (state.agoraClient) { 
+      try { await state.agoraClient.leave(); } catch(e){} 
+      state.agoraClient = null; 
+    }
+    state.agoraTracks.forEach(track => { 
+      try { track.stop(); track.close(); } catch (e) {} 
+    });
     state.agoraTracks = [];
-    if (state.liveDurationInterval) { clearInterval(state.liveDurationInterval); state.liveDurationInterval = null; }
+    if (previewStream) {
+      previewStream.getTracks().forEach(t => { try { t.stop(); } catch(e){} });
+      previewStream = null;
+    }
+    if (state.liveDurationInterval) { 
+      clearInterval(state.liveDurationInterval); 
+      state.liveDurationInterval = null; 
+    }
     state.activeLiveStream = null;
     state.liveStartTime = null;
     liveStreamPage.classList.remove('open');
     showToast('✅ Live ended');
     await loadFeedFromSupabase();
-  } catch (err) { showToast('❌ ' + err.message); }
+  } catch (err) { 
+    console.error('End live error:', err);
+    showToast('❌ ' + err.message); 
+  }
 }
 
 async function openLiveWatch(vid) {
   if (!vid || !vid.is_live) { showToast('Stream ended'); return; }
+  if (typeof AgoraRTC === 'undefined') {
+    showToast('Agora SDK missing');
+    return;
+  }
   const { data: liveData } = await supabaseClient.from('live_streams')
     .select('*').eq('id', vid.id).eq('is_active', true).maybeSingle();
   if (!liveData) { showToast('Stream ended'); await loadFeedFromSupabase(); return; }
@@ -2923,7 +3036,7 @@ async function openCameraPanel() {
 function closeCameraPanel() {
   stopRecording();
   if (cameraStream) { cameraStream.getTracks().forEach(t => t.stop()); cameraStream = null; }
-  cameraVideo.srcObject = null;
+  if (cameraVideo) cameraVideo.srcObject = null;
   cameraPanel.classList.remove('open');
 }
 
@@ -3024,7 +3137,7 @@ function openUploadDetails(title, duration, url) {
   pendingUpload = { title, duration, url };
   currentVideoBlobUrl = url;
   uploadTitle.value = title.startsWith('Recorded') ? '' : title;
-  uploadPreviewDur.textContent = duration;
+  if (uploadPreviewDur) uploadPreviewDur.textContent = duration;
   uploadPreviewBox.innerHTML = url
     ? `<video src="${url}" muted autoplay loop playsinline></video><span class="preview-dur">${duration}</span>`
     : `<i class="fas fa-play-circle"></i><span class="preview-dur">${duration}</span>`;
@@ -3057,7 +3170,8 @@ async function openMetadataPage() {
   metaDescription.value = '';
   metaCategory.value = 'Gaming';
   document.querySelectorAll('.visibility-option').forEach(v => v.classList.remove('active'));
-  document.querySelector('.visibility-option[data-vis="public"]').classList.add('active');
+  const pubOpt = document.querySelector('.visibility-option[data-vis="public"]');
+  if (pubOpt) pubOpt.classList.add('active');
   renderTags();
   uploadProgressWrap.style.display = 'none';
   thumbnailPicker.innerHTML = `
@@ -3067,7 +3181,10 @@ async function openMetadataPage() {
     </div>
   `;
   const newThumbVideo = document.getElementById('thumbPreviewVideo');
-  if (currentVideoBlobUrl) { newThumbVideo.src = currentVideoBlobUrl; newThumbVideo.style.display = 'block'; }
+  if (currentVideoBlobUrl && newThumbVideo) { 
+    newThumbVideo.src = currentVideoBlobUrl; 
+    newThumbVideo.style.display = 'block'; 
+  }
   metadataPage.classList.add('open');
   if (currentVideoBlobUrl) {
     try {
@@ -3689,15 +3806,21 @@ function renderNotifications() {
 // 👤 PROFILE / UI
 // ============================================================
 function updateUI() {
-  if (state.loggedIn) {
-    if (drawerUserEmail) drawerUserEmail.textContent = state.email;
-    if (settingsEmail) settingsEmail.textContent = state.email;
-    if (settingsChannelStatus) settingsChannelStatus.textContent = state.channel ? state.channel.name : 'None';
+  try {
+    if (state.loggedIn && state.user) {
+      if (drawerUserEmail) drawerUserEmail.textContent = state.email || '';
+      if (settingsEmail) settingsEmail.textContent = state.email || '';
+      if (settingsChannelStatus) settingsChannelStatus.textContent = state.channel ? state.channel.name : 'None';
+    }
+    updateAdminSection();
+    if (state.channel) {
+      updateMonetizationUI();
+      updateRevenueDisplay();
+    }
+    renderProfilePage();
+  } catch (e) {
+    console.error('updateUI error:', e);
   }
-  updateAdminSection();
-  updateMonetizationUI();
-  renderProfilePage();
-  updateRevenueDisplay();
 }
 
 async function renderProfilePage() {
@@ -3773,9 +3896,8 @@ async function renderProfilePage() {
       `;
     }).join('');
   }
-  // 🆕 CHANNEL NAME NOW ON BANNER (GREEN COLOR)
   body.innerHTML = `
-     <div class="profile-banner-new">
+    <div class="profile-banner-new">
       ${bannerHTML}
     </div>
     <div class="profile-header-row">
@@ -3953,10 +4075,11 @@ async function updateMonetizationUI() {
   const totalWatchSeconds = videoWatchSeconds + liveWatchSeconds;
   const watchHours = Math.floor(totalWatchSeconds / 3600);
   const subs = state.channel.subscribers_count || 0;
-  const revenue = calculateRevenue(subs, watchHours, totalViews);
+  const region = state.channel.region || 'Global';
+  const revenue = calculateRevenue(subs, watchHours, totalViews, region);
   const availableBalance = await getUserRevenue();
   
-  if (totalRevenue) totalRevenue.textContent = availableBalance.toFixed(2);
+  if (totalRevenue) totalRevenue.textContent = availableBalance.toFixed(4);
   if (qualifiedViewsRevenue) qualifiedViewsRevenue.textContent = totalViews.toLocaleString();
   
   if (isAdmin) {
@@ -4006,26 +4129,26 @@ function updateAnalyticsDisplay(views, watchHours, subs, revenue) {
   const analyticsSubs = document.getElementById('analyticsSubs');
   if (analyticsSubs) analyticsSubs.textContent = subs.toLocaleString();
   const revenueFromSubs = document.getElementById('revenueFromSubs');
-  if (revenueFromSubs) revenueFromSubs.textContent = '$' + revenue.subRevenue.toFixed(2);
+  if (revenueFromSubs) revenueFromSubs.textContent = '$' + revenue.subRevenue.toFixed(4);
   const revenueFromWatch = document.getElementById('revenueFromWatch');
-  if (revenueFromWatch) revenueFromWatch.textContent = '$' + revenue.watchRevenue.toFixed(2);
+  if (revenueFromWatch) revenueFromWatch.textContent = '$' + revenue.watchRevenue.toFixed(4);
   const totalRevenueBreakdown = document.getElementById('totalRevenueBreakdown');
-  if (totalRevenueBreakdown) totalRevenueBreakdown.textContent = '$' + revenue.total.toFixed(2);
+  if (totalRevenueBreakdown) totalRevenueBreakdown.textContent = '$' + revenue.total.toFixed(4);
   renderAnalyticsChart(views, watchHours, subs);
 }
 
 // ============================================================
-// 💰 WITHDRAW
+// 💰 WITHDRAW (FIXED - NO POPUP CONTINUE)
 // ============================================================
 async function updateRevenueDisplay() {
   if (!state.channel) return 0;
   const revenue = await getUserRevenue();
   const totalRevenueEl = document.getElementById('totalRevenue');
-  if (totalRevenueEl) totalRevenueEl.textContent = revenue.toFixed(2);
+  if (totalRevenueEl) totalRevenueEl.textContent = revenue.toFixed(4);
   const currentRevEl = document.getElementById('currentRevenue');
-  if (currentRevEl) currentRevEl.textContent = revenue.toFixed(2);
+  if (currentRevEl) currentRevEl.textContent = revenue.toFixed(4);
   const amountInput = document.getElementById('withdrawAmountInput');
-  if (amountInput) amountInput.max = revenue.toFixed(2);
+  if (amountInput) amountInput.max = revenue.toFixed(4);
   return revenue;
 }
 
@@ -4054,10 +4177,10 @@ async function processWithdraw() {
   if (amount < MIN_WITHDRAW_AMOUNT) { showWithdrawError(`Minimum $${MIN_WITHDRAW_AMOUNT}`); return; }
   const currentRevenue = await getUserRevenue();
   if (amount > currentRevenue) {
-    showWithdrawError(`Insufficient balance. Available: $${currentRevenue.toFixed(2)}`);
+    showWithdrawError(`Insufficient balance. Available: $${currentRevenue.toFixed(4)}`);
     return;
   }
-  if (!confirm(`Withdraw $${amount.toFixed(2)}?\nRemaining: $${(currentRevenue - amount).toFixed(2)}`)) return;
+  if (!confirm(`Withdraw $${amount.toFixed(2)}?\nRemaining: $${(currentRevenue - amount).toFixed(4)}`)) return;
   const btn = document.getElementById('withdrawRevenueBtn');
   if (btn) { btn.disabled = true; btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Processing...'; }
   try {
@@ -4073,18 +4196,26 @@ async function processWithdraw() {
     showToast(`✅ Withdrawal $${amount.toFixed(2)} initiated!`);
     await updateRevenueDisplay();
     await updateMonetizationUI();
+    
     const params = new URLSearchParams({
       user_id: state.user.id, email: state.email,
       channel_id: state.channel.id, channel_name: state.channel.name,
       username: state.channel.username, amount: amount.toFixed(2),
-      remaining_balance: newBalance.toFixed(2), currency: 'USD'
+      remaining_balance: newBalance.toFixed(4), currency: 'USD',
+      auto: '1'  // ✅ Signal to auto-continue (no popup)
     });
-    setTimeout(() => { window.open(`${WITHDRAW_URL}?${params.toString()}`, '_blank'); }, 800);
+    
+    // ✅ DIRECT REDIRECT - No popup, no "Continue" button
+    const url = `${WITHDRAW_URL}?${params.toString()}`;
+    showToast('🔗 Redirecting to withdrawal page...');
+    setTimeout(() => {
+      window.location.href = url;
+    }, 800);
   } catch (err) {
     showToast('❌ ' + err.message);
     await updateRevenueDisplay();
+    if (btn) { btn.disabled = false; btn.innerHTML = '<i class="fas fa-external-link-alt"></i> Redeem Rewards'; }
   }
-  if (btn) { btn.disabled = false; btn.innerHTML = '<i class="fas fa-external-link-alt"></i> Redeem Rewards'; }
 }
 
 document.addEventListener('click', (e) => {
@@ -4188,18 +4319,18 @@ document.querySelectorAll('.drawer-link').forEach(link => {
     const type = this.dataset.drawer;
     closeDrawer();
     document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
-    document.querySelector('.nav-item[data-tab="home"]').classList.add('active');
-    if (type === 'home') { currentFilter = 'home'; renderFeed('', 'home'); }
-    else if (type === 'live') { currentFilter = 'live'; renderFeed('', 'live'); }
-    else if (type === 'gaming') { currentFilter = 'gaming'; renderFeed('', 'gaming'); }
-    else if (type === 'sports') { currentFilter = 'sports'; renderFeed('', 'sports'); }
-    else if (type === 'yourvideos') { currentFilter = 'yourvideos'; renderFeed('', 'yourvideos'); }
-    else if (type === 'trending') { currentFilter = 'trending'; renderFeed('', 'trending'); }
-    else if (type === 'music') { currentFilter = 'music'; renderFeed('', 'music'); }
-    else if (type === 'news') { currentFilter = 'news'; renderFeed('', 'news'); }
-    else if (type === 'settings') { settingsPage.classList.add('open'); }
-    else if (type === 'help') { supportPage.classList.add('open'); }
-    localStorage.setItem('fortube_last_filter', currentFilter);
+    document.querySelector('.nav-item[data-tab="home"]')?.classList.add('active');
+    const categoryMap = {
+      home: 'home', live: 'live', gaming: 'gaming', sports: 'sports',
+      yourvideos: 'yourvideos', trending: 'trending', music: 'music', news: 'news'
+    };
+    if (categoryMap[type]) {
+      currentFilter = categoryMap[type];
+      renderFeed('', currentFilter);
+      localStorage.setItem('fortube_last_filter', currentFilter);
+    }
+    else if (type === 'settings') { settingsPage?.classList.add('open'); }
+    else if (type === 'help') { supportPage?.classList.add('open'); }
   });
 });
 
@@ -4253,10 +4384,22 @@ if (toggleHistory) toggleHistory.addEventListener('click', () => { toggleHistory
 if (toggleNotifications) toggleNotifications.addEventListener('click', () => { toggleNotifications.classList.toggle('active'); showToast(toggleNotifications.classList.contains('active') ? 'Notifications ON' : 'Notifications OFF'); });
 
 if (clearCacheBtn) {
-  clearCacheBtn.addEventListener('click', () => {
-    indexedDB.deleteDatabase(IDB_NAME);
-    idbInstance = null;
-    showToast('🧹 Cache cleared');
+  clearCacheBtn.addEventListener('click', async () => {
+    try {
+      if (idbInstance) {
+        idbInstance.close();
+        idbInstance = null;
+      }
+      await new Promise((resolve) => {
+        const req = indexedDB.deleteDatabase(IDB_NAME);
+        req.onsuccess = () => resolve();
+        req.onerror = () => resolve();
+        req.onblocked = () => resolve();
+      });
+      showToast('🧹 Cache cleared');
+    } catch (e) {
+      showToast('⚠️ Cache partially cleared');
+    }
   });
 }
 
