@@ -1,6 +1,6 @@
 /* ============================================================
-   FORTUBE v21 - ALL BUGS FIXED
-   Fixes: Live black screen, Refresh restore, Withdrawal, Shorts loop
+   FORTUBE v22 - SHORTS LOOP + 9:16 FULLSCREEN FIXED
+   All original features preserved
    ============================================================ */
 
 const SUPABASE_URL = "https://eaxstlpltwgpmaupgcwq.supabase.co";
@@ -418,7 +418,6 @@ function calculateRevenue(subscribers, watchHours, totalViews) {
   };
 }
 
-// 🆕 FIX: Revenue minus total withdrawn
 async function getUserRevenue() {
   if (!state.channel || !state.user) return 0;
   
@@ -447,7 +446,6 @@ async function getUserRevenue() {
     
     const revenue = calculateRevenue(subs, watchHours, totalViews);
     
-    // 🆕 FIX: Subtract withdrawn amount
     let withdrawn = 0;
     try {
       const { data: withdrawals } = await supabaseClient
@@ -469,7 +467,6 @@ async function getUserRevenue() {
   }
 }
 
-// Get gross revenue (without subtracting withdrawals)
 async function getGrossRevenue() {
   if (!state.channel || !state.user) return 0;
   try {
@@ -790,10 +787,10 @@ async function generateThumbnailFromVideo(videoBlob, seekTime = 1) {
 }
 
 // ============================================================
-// 🆕 PAGE STATE SAVE/RESTORE
+// PAGE STATE SAVE/RESTORE
 // ============================================================
 function saveCurrentPageState() {
-  const state = {
+  const stateData = {
     filter: currentFilter,
     watchVideoId: null,
     channelViewUsername: null,
@@ -804,27 +801,24 @@ function saveCurrentPageState() {
     shortsIndex: 0
   };
   
-  // Watch page state
   if (watchPage?.classList.contains('open')) {
-    state.watchVideoId = state.currentWatchingVideoId;
+    stateData.watchVideoId = state.currentWatchingVideoId;
   }
   
-  // Channel view state
   const chViewHeader = channelViewHeaderTitle?.textContent;
   if (channelViewPage?.classList.contains('open') && chViewHeader) {
     const ch = state.allChannels.find(c => c.name === chViewHeader);
-    if (ch) state.channelViewUsername = ch.username;
+    if (ch) stateData.channelViewUsername = ch.username;
   }
   
-  // Shorts index
   const container = document.getElementById('shortsScrollContainer');
   if (container) {
     const first = container.querySelector('.short-item');
-    if (first) state.shortsIndex = parseInt(first.dataset.index || 0);
+    if (first) stateData.shortsIndex = parseInt(first.dataset.index || 0);
   }
   
   try {
-    localStorage.setItem('fortube_page_state', JSON.stringify(state));
+    localStorage.setItem('fortube_page_state', JSON.stringify(stateData));
     localStorage.setItem('fortube_last_filter', currentFilter);
   } catch (e) {}
 }
@@ -837,7 +831,6 @@ async function restorePageState() {
   
   if (!saved) return;
   
-  // Restore filter first
   if (saved.filter && saved.filter !== 'home') {
     currentFilter = saved.filter;
     if (saved.filter === 'shorts') {
@@ -849,7 +842,6 @@ async function restorePageState() {
     }
   }
   
-  // Restore watch page
   if (saved.watchVideoId) {
     const vid = state.allVideos.find(v => v.id === saved.watchVideoId);
     if (vid) {
@@ -860,12 +852,10 @@ async function restorePageState() {
     }
   }
   
-  // Restore channel view
   if (saved.channelViewUsername) {
     setTimeout(() => openChannelView(saved.channelViewUsername), 700);
   }
   
-  // Restore profile panel
   if (saved.showProfile) {
     setTimeout(() => {
       profilePanel?.classList.add('open');
@@ -873,7 +863,6 @@ async function restorePageState() {
     }, 800);
   }
   
-  // Restore monetization
   if (saved.showMonetization) {
     setTimeout(async () => {
       monetizationPage?.classList.add('open');
@@ -898,18 +887,15 @@ async function restorePageState() {
     }, 900);
   }
   
-  // Restore settings
   if (saved.showSettings) {
     setTimeout(() => settingsPage?.classList.add('open'), 1000);
   }
   
-  // Restore feed scroll
   if (saved.scrollFeed && feed) {
     setTimeout(() => { feed.scrollTop = saved.scrollFeed; }, 300);
   }
 }
 
-// Save on page unload
 window.addEventListener('beforeunload', () => {
   saveCurrentPageState();
 });
@@ -947,7 +933,6 @@ async function checkSession() {
         return;
       }
       
-      // 🆕 Restore last page
       await restorePageState();
       
     } else {
@@ -1259,7 +1244,7 @@ function renderFeed(filterText = '', categoryFilter = null) {
 }
 
 // ============================================================
-// 🎵 SHORTS FEED
+// 🎵 SHORTS FEED — FIXED 9:16 FULL SCREEN + LOOP
 // ============================================================
 function renderShortsFeed() {
   if (!shortsFeed) return;
@@ -1300,7 +1285,7 @@ function renderShortsFeed() {
       <div class="short-item" data-short-id="${vid.id}" data-index="${idx}">
         <div class="short-video-wrapper">
           ${vid.video_url 
-            ? `<video class="short-video" src="${vid.video_url}" loop playsinline preload="metadata" poster="${vid.thumbnail_url || ''}" webkit-playsinline></video>`
+            ? `<video class="short-video" src="${vid.video_url}" loop playsinline preload="auto" poster="${vid.thumbnail_url || ''}" webkit-playsinline x5-playsinline x5-video-player-type="h5" x5-video-player-fullscreen="false" disablepictureinpicture></video>`
             : `<div class="short-video-placeholder"><i class="fas fa-play-circle"></i></div>`
           }
           <div class="short-play-overlay" data-play="${vid.id}">
@@ -1428,7 +1413,6 @@ function renderShortsFeed() {
     });
   });
   
-  // 🆕 FIX: Track watch time for shorts
   setupShortWatchTracking();
 }
 
@@ -1443,18 +1427,15 @@ function setupShortWatchTracking() {
       const video = shortItem.querySelector('.short-video');
       if (!video) return;
       
-      if (entry.intersectionRatio > 0.6) {
-        // Started watching
+      if (entry.intersectionRatio > 0.75) {
         if (!video._watchStarted) {
           video._watchStarted = Date.now();
           video._shortId = shortItem.dataset.shortId;
         }
       } else {
-        // Stopped watching
         if (video._watchStarted && video._shortId) {
           const elapsed = Math.floor((Date.now() - video._watchStarted) / 1000);
           if (elapsed > 2 && state.user) {
-            // Count as view + watch time
             const vid = state.allVideos.find(v => v.id === video._shortId);
             if (vid && vid.owner_id !== state.user.id) {
               addShortView(video._shortId, elapsed);
@@ -1464,7 +1445,11 @@ function setupShortWatchTracking() {
         }
       }
     });
-  }, { root: container, threshold: [0.6] });
+  }, { 
+    root: container, 
+    threshold: [0.4, 0.75],
+    rootMargin: '0px'
+  });
   
   container.querySelectorAll('.short-item').forEach(item => observer.observe(item));
 }
@@ -1484,56 +1469,67 @@ async function addShortView(videoId, seconds) {
   } catch (e) {}
 }
 
-// 🆕 FIX: Shorts loop + no restart
+// 🆕 FIX: Shorts loop + no restart + 9:16 full screen
 function setupShortsAutoPlay() {
   const container = document.getElementById('shortsScrollContainer');
   if (!container) return;
   const videos = container.querySelectorAll('.short-video');
   
+  // Full mobile optimization
   videos.forEach(v => {
     v.loop = true;
     v.setAttribute('loop', '');
     v.playsInline = true;
     v.setAttribute('playsinline', '');
     v.setAttribute('webkit-playsinline', '');
+    v.setAttribute('x5-playsinline', '');
+    v.setAttribute('x5-video-player-type', 'h5');
+    v.setAttribute('x5-video-player-fullscreen', 'false');
+    v.setAttribute('disablepictureinpicture', '');
     v.muted = false;
+    v.preload = 'auto';
   });
   
-  let currentlyPlaying = null;
+  // Pause all others helper
+  const pauseOthers = (currentVideo) => {
+    videos.forEach(v => {
+      if (v !== currentVideo && !v.paused) {
+        v.pause();
+        const o = v.parentElement.querySelector('.short-play-overlay');
+        if (o) o.style.opacity = '1';
+      }
+    });
+  };
   
+  // Observe visibility
   const observer = new IntersectionObserver((entries) => {
     entries.forEach(entry => {
       const video = entry.target;
       const overlay = video.parentElement.querySelector('.short-play-overlay');
       
-      if (entry.isIntersecting && entry.intersectionRatio > 0.6) {
-        // Pause others
-        videos.forEach(v => {
-          if (v !== video && !v.paused) {
-            v.pause();
-            const o = v.parentElement.querySelector('.short-play-overlay');
-            if (o) o.style.opacity = '1';
-          }
-        });
-        
-        // 🆕 FIX: Play current — don't reset currentTime
+      if (entry.isIntersecting && entry.intersectionRatio > 0.75) {
+        pauseOthers(video);
         if (video.paused) {
-          currentlyPlaying = video;
           video.play()
             .then(() => { if (overlay) overlay.style.opacity = '0'; })
             .catch(() => { if (overlay) overlay.style.opacity = '1'; });
         }
-      } else {
+      } else if (entry.intersectionRatio < 0.4) {
         if (!video.paused) {
           video.pause();
           if (overlay) overlay.style.opacity = '1';
         }
       }
     });
-  }, { root: container, threshold: [0.6] });
+  }, { 
+    root: container, 
+    threshold: [0, 0.4, 0.75, 1.0],
+    rootMargin: '0px'
+  });
   
   videos.forEach(v => observer.observe(v));
   
+  // Progress bars + loop safety
   const progressBars = container.querySelectorAll('.short-progress-fill');
   videos.forEach((video, idx) => {
     video.addEventListener('timeupdate', () => {
@@ -1543,16 +1539,37 @@ function setupShortsAutoPlay() {
       }
     });
     
-    // 🆕 FIX: Loop without restart
+    // Prevent default ended — smooth loop
     video.addEventListener('ended', (e) => {
       e.preventDefault();
-      video.currentTime = 0;
-      video.play().catch(() => {});
+      e.stopPropagation();
+      try {
+        video.currentTime = 0;
+        video.play().catch(() => {});
+      } catch (err) {}
     });
     
-    // 🆕 Prevent fullscreen on some browsers
+    // Prevent fullscreen on iOS
     video.addEventListener('webkitbeginfullscreen', (e) => e.preventDefault());
+    video.addEventListener('enterpictureinpicture', (e) => e.preventDefault());
+    
+    // If stalled, retry play
+    video.addEventListener('stalled', () => {
+      setTimeout(() => {
+        if (video.paused && video.offsetParent !== null) {
+          video.play().catch(() => {});
+        }
+      }, 500);
+    });
   });
+  
+  // Auto-play first visible short
+  setTimeout(() => {
+    const first = container.querySelector('.short-video');
+    if (first && first.paused) {
+      first.play().catch(() => {});
+    }
+  }, 300);
 }
 
 // ============================================================
@@ -2619,7 +2636,7 @@ if (plusLiveBtn) {
   });
 }
 
-// ==================== 🆕 LIVE STREAMING (FIXED BLACK SCREEN) ====================
+// ==================== LIVE STREAMING ====================
 async function openLiveSetup() {
   if (!state.channel) { showToast('Create channel first'); openChannelSetup(); return; }
   const isAdmin = isUserAdmin();
@@ -2708,7 +2725,6 @@ async function startLiveStream() {
     liveStreamTitle.textContent = title;
     liveStreamChannel.textContent = state.channel.name;
     
-    // 🆕 FIX: Wait for container to be visible before Agora play
     await new Promise(r => setTimeout(r, 500));
     await setupAgoraBroadcaster(channelName, previewStream);
     
@@ -2740,7 +2756,6 @@ async function startLiveStream() {
   liveStartBtn.innerHTML = '<i class="fas fa-broadcast-tower"></i> Start Live';
 }
 
-// 🆕 FIX: Better broadcaster with retry
 async function setupAgoraBroadcaster(channelName, stream) {
   let client = null;
   try {
@@ -2749,7 +2764,6 @@ async function setupAgoraBroadcaster(channelName, stream) {
     await client.setClientRole('host');
     await client.join(AGORA_APP_ID, channelName, null, null);
     
-    // 🆕 Use local stream first (faster, no black screen)
     const [audioTrack, videoTrack] = await AgoraRTC.createMicrophoneAndCameraTracks(
       { 
         encoderConfig: '720p_1', 
@@ -2761,16 +2775,10 @@ async function setupAgoraBroadcaster(channelName, stream) {
     );
     
     state.agoraTracks = [audioTrack, videoTrack];
-    
-    // 🆕 Clear container
     liveBroadcastContainer.innerHTML = '';
-    
-    // 🆕 Wait for DOM ready
     await new Promise(r => setTimeout(r, 300));
-    
     videoTrack.play(liveBroadcastContainer);
     
-    // 🆕 Fallback: If Agora play fails, show local
     setTimeout(() => {
       if (!liveBroadcastContainer.querySelector('video') || liveBroadcastContainer.querySelectorAll('video').length === 0) {
         const localVideo = document.createElement('video');
@@ -2791,7 +2799,6 @@ async function setupAgoraBroadcaster(channelName, stream) {
     
   } catch (err) {
     console.error('Agora broadcaster error:', err);
-    // 🆕 Fallback: Show local video instead
     if (client) {
       try { await client.leave(); } catch (e) {}
       state.agoraClient = null;
@@ -2842,7 +2849,6 @@ async function endLiveStream() {
   } catch (err) { showToast('❌ ' + err.message); }
 }
 
-// 🆕 FIX: Better viewer join
 async function openLiveWatch(vid) {
   if (!vid || !vid.is_live) { showToast('Stream ended'); return; }
   const { data: liveData } = await supabaseClient.from('live_streams')
@@ -2871,7 +2877,6 @@ async function openLiveWatch(vid) {
   }
   liveWatchPage.classList.add('open');
   
-  // 🆕 Wait for page to open
   await new Promise(r => setTimeout(r, 500));
   await joinAgoraAsViewer(liveData.agora_channel);
   
@@ -2897,7 +2902,6 @@ async function openLiveWatch(vid) {
   }, 1000);
 }
 
-// 🆕 FIX: Better viewer with retry
 async function joinAgoraAsViewer(channelName) {
   try {
     const client = AgoraRTC.createClient({ mode: 'live', codec: 'vp8' });
@@ -4131,7 +4135,7 @@ function updateAnalyticsDisplay(views, watchHours, subs, revenue) {
 // ============================================================
 async function updateRevenueDisplay() {
   if (!state.channel) return 0;
-  const revenue = await getUserRevenue(); // This already subtracts withdrawals
+  const revenue = await getUserRevenue();
   const gross = await getGrossRevenue();
   
   const totalRevenueEl = document.getElementById('totalRevenue');
@@ -4190,7 +4194,6 @@ async function processWithdraw() {
   try {
     const newBalance = currentRevenue - amount;
     
-    // 🆕 FIX: Save withdrawal to DB so it's subtracted
     const { error: wError } = await supabaseClient.from('withdrawals').insert({
       user_id: state.user.id, 
       channel_id: state.channel.id,
@@ -4200,7 +4203,6 @@ async function processWithdraw() {
     });
     if (wError) {
       console.error('Withdrawal save error:', wError);
-      // Continue anyway — user can still withdraw
     }
     
     await createNotification(state.user.id,
@@ -4208,7 +4210,6 @@ async function processWithdraw() {
     amountInput.value = '';
     showToast(`✅ Withdrawal of $${amount.toFixed(2)} initiated!`);
     
-    // 🆕 FIX: Refresh display immediately
     await updateRevenueDisplay();
     await updateMonetizationUI();
     
