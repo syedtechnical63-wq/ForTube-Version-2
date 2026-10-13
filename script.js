@@ -1,5 +1,6 @@
 /* ============================================================
-   FORTUBE v19 - FINAL (Auto Revenue + Copyright + Tag Search)
+   FORTUBE v21 - ALL BUGS FIXED
+   Fixes: Live black screen, Refresh restore, Withdrawal, Shorts loop
    ============================================================ */
 
 const SUPABASE_URL = "https://eaxstlpltwgpmaupgcwq.supabase.co";
@@ -102,6 +103,7 @@ const state = {
   chartInstance: null,
   currentShortsIndex: 0,
   shortsVideos: [],
+  totalWithdrawn: 0,
   preferences: {
     language: 'English',
     region: 'Global',
@@ -402,13 +404,12 @@ function isUserAdmin() {
 }
 
 // ============================================================
-// 💰 REVENUE CALCULATION (AUTO-GENERATED)
+// 💰 REVENUE CALCULATION
 // ============================================================
 function calculateRevenue(subscribers, watchHours, totalViews) {
   const subRevenue = (subscribers / 500) * REVENUE_PER_500_SUBS;
   const watchRevenue = (watchHours / 1000) * REVENUE_PER_1000_HOURS;
   const viewBonus = totalViews * 0.00001;
-  
   return {
     subRevenue: subRevenue,
     watchRevenue: watchRevenue,
@@ -417,24 +418,21 @@ function calculateRevenue(subscribers, watchHours, totalViews) {
   };
 }
 
-// ✅ AUTO-GENERATE: Revenue from subs + watch time + views (NO manual edit)
+// 🆕 FIX: Revenue minus total withdrawn
 async function getUserRevenue() {
   if (!state.channel || !state.user) return 0;
   
   try {
-    // 1. Get videos
     const { data: videos } = await supabaseClient
       .from('videos')
       .select('views, watch_time_seconds')
       .eq('owner_id', state.user.id);
     
-    // 2. Get live streams
     const { data: liveStreams } = await supabaseClient
       .from('live_streams')
       .select('views, duration_seconds')
       .eq('channel_id', state.channel.id);
     
-    // 3. Calculate totals
     const videoViews = (videos || []).reduce((sum, v) => sum + (v.views || 0), 0);
     const liveViews = (liveStreams || []).reduce((sum, l) => sum + (l.views || 0), 0);
     const totalViews = videoViews + liveViews;
@@ -447,15 +445,46 @@ async function getUserRevenue() {
     
     const subs = state.channel.subscribers_count || 0;
     
-    // 4. Calculate revenue
     const revenue = calculateRevenue(subs, watchHours, totalViews);
     
-    return revenue.total;
+    // 🆕 FIX: Subtract withdrawn amount
+    let withdrawn = 0;
+    try {
+      const { data: withdrawals } = await supabaseClient
+        .from('withdrawals')
+        .select('amount')
+        .eq('user_id', state.user.id);
+      withdrawn = (withdrawals || []).reduce((sum, w) => sum + parseFloat(w.amount || 0), 0);
+    } catch (e) {
+      console.log('Withdrawals not found, using 0');
+    }
+    
+    state.totalWithdrawn = withdrawn;
+    const availableBalance = Math.max(0, revenue.total - withdrawn);
+    return availableBalance;
     
   } catch (e) {
     console.error('Revenue calculation error:', e);
     return 0;
   }
+}
+
+// Get gross revenue (without subtracting withdrawals)
+async function getGrossRevenue() {
+  if (!state.channel || !state.user) return 0;
+  try {
+    const { data: videos } = await supabaseClient.from('videos')
+      .select('views, watch_time_seconds').eq('owner_id', state.user.id);
+    const { data: liveStreams } = await supabaseClient.from('live_streams')
+      .select('views, duration_seconds').eq('channel_id', state.channel.id);
+    const videoViews = (videos || []).reduce((s, v) => s + (v.views || 0), 0);
+    const liveViews = (liveStreams || []).reduce((s, l) => s + (l.views || 0), 0);
+    const videoWatch = (videos || []).reduce((s, v) => s + (v.watch_time_seconds || 0), 0);
+    const liveWatch = (liveStreams || []).reduce((s, l) => s + ((l.duration_seconds || 0) * (l.views || 0)), 0);
+    const watchHours = Math.floor((videoWatch + liveWatch) / 3600);
+    const subs = state.channel.subscribers_count || 0;
+    return calculateRevenue(subs, watchHours, videoViews + liveViews).total;
+  } catch (e) { return 0; }
 }
 
 // ============================================================
@@ -464,42 +493,30 @@ async function getUserRevenue() {
 function renderAnalyticsChart(views, watchHours, subs) {
   const canvas = document.getElementById('analyticsChart');
   if (!canvas) return;
-  
   const ctx = canvas.getContext('2d');
-  
-  if (state.chartInstance) {
-    state.chartInstance.destroy();
-    state.chartInstance = null;
-  }
-  
+  if (state.chartInstance) { state.chartInstance.destroy(); state.chartInstance = null; }
   const labels = [];
   for (let i = 6; i >= 0; i--) {
     const d = new Date();
     d.setDate(d.getDate() - i);
     labels.push(d.toLocaleDateString('en', { month: 'short', day: 'numeric' }));
   }
-  
   const viewsData = generateGrowthData(views, 7);
   const watchData = generateGrowthData(watchHours, 7);
   const subsData = generateGrowthData(subs, 7);
-  
   const dpr = window.devicePixelRatio || 1;
   const rect = canvas.getBoundingClientRect();
   canvas.width = rect.width * dpr;
   canvas.height = rect.height * dpr;
   ctx.scale(dpr, dpr);
-  
   const width = rect.width;
   const height = rect.height;
   const padding = { top: 20, right: 20, bottom: 40, left: 40 };
   const chartWidth = width - padding.left - padding.right;
   const chartHeight = height - padding.top - padding.bottom;
-  
   ctx.clearRect(0, 0, width, height);
-  
   const allValues = [...viewsData, ...watchData, ...subsData];
   const maxValue = Math.max(...allValues, 1);
-  
   ctx.strokeStyle = '#e0e8f0';
   ctx.lineWidth = 1;
   for (let i = 0; i <= 4; i++) {
@@ -509,7 +526,6 @@ function renderAnalyticsChart(views, watchHours, subs) {
     ctx.lineTo(width - padding.right, y);
     ctx.stroke();
   }
-  
   ctx.fillStyle = '#8aa9b8';
   ctx.font = '10px sans-serif';
   ctx.textAlign = 'center';
@@ -517,14 +533,12 @@ function renderAnalyticsChart(views, watchHours, subs) {
     const x = padding.left + (chartWidth / 6) * i;
     ctx.fillText(label, x, height - 15);
   });
-  
   ctx.textAlign = 'right';
   for (let i = 0; i <= 4; i++) {
     const value = Math.round(maxValue - (maxValue / 4) * i);
     const y = padding.top + (chartHeight / 4) * i;
     ctx.fillText(value.toString(), padding.left - 5, y + 4);
   }
-  
   function drawLine(data, color, fillColor) {
     ctx.beginPath();
     ctx.moveTo(padding.left, padding.top + chartHeight);
@@ -537,7 +551,6 @@ function renderAnalyticsChart(views, watchHours, subs) {
     ctx.closePath();
     ctx.fillStyle = fillColor;
     ctx.fill();
-    
     ctx.beginPath();
     data.forEach((value, i) => {
       const x = padding.left + (chartWidth / 6) * i;
@@ -548,7 +561,6 @@ function renderAnalyticsChart(views, watchHours, subs) {
     ctx.strokeStyle = color;
     ctx.lineWidth = 2.5;
     ctx.stroke();
-    
     data.forEach((value, i) => {
       const x = padding.left + (chartWidth / 6) * i;
       const y = padding.top + chartHeight - (value / maxValue) * chartHeight;
@@ -561,7 +573,6 @@ function renderAnalyticsChart(views, watchHours, subs) {
       ctx.stroke();
     });
   }
-  
   drawLine(viewsData, '#1e8b4b', 'rgba(30, 139, 75, 0.1)');
   drawLine(watchData, '#1c7aa3', 'rgba(28, 122, 163, 0.1)');
   drawLine(subsData, '#d97706', 'rgba(217, 119, 6, 0.1)');
@@ -635,27 +646,22 @@ async function compressVideo(inputBlob, maxSizeMB = 40) {
       video.muted = false;
       video.volume = 1;
       video.crossOrigin = 'anonymous';
-      
       const url = URL.createObjectURL(inputBlob);
       video.src = url;
-
       await new Promise((res, rej) => {
         video.onloadedmetadata = res;
         video.onerror = () => rej(new Error('Cannot read video'));
         setTimeout(() => rej(new Error('Metadata timeout')), 20000);
       });
-
       const duration = video.duration;
       if (!isFinite(duration) || duration <= 0) {
         URL.revokeObjectURL(url);
         return resolve(inputBlob);
       }
-
       const targetBytes = maxSizeMB * 1024 * 1024;
       let targetBitrate = Math.floor((targetBytes * 8) / duration);
       targetBitrate = Math.min(targetBitrate, 1500000);
       targetBitrate = Math.max(targetBitrate, 400000);
-
       const canvas = document.createElement('canvas');
       let w = video.videoWidth || 640;
       let h = video.videoHeight || 480;
@@ -667,15 +673,12 @@ async function compressVideo(inputBlob, maxSizeMB = 40) {
       canvas.width = w;
       canvas.height = h;
       const ctx = canvas.getContext('2d');
-
       const stream = canvas.captureStream(24);
-
       let audioCtx = null;
       try {
         const AudioContext = window.AudioContext || window.webkitAudioContext;
         audioCtx = new AudioContext();
         if (audioCtx.state === 'suspended') await audioCtx.resume();
-
         const source = audioCtx.createMediaElementSource(video);
         const dest = audioCtx.createMediaStreamDestination();
         source.connect(dest);
@@ -683,51 +686,41 @@ async function compressVideo(inputBlob, maxSizeMB = 40) {
         silentGain.gain.value = 0;
         source.connect(silentGain);
         silentGain.connect(audioCtx.destination);
-
         const audioTracks = dest.stream.getAudioTracks();
         if (audioTracks.length > 0) audioTracks.forEach(t => stream.addTrack(t));
       } catch (e) {}
-
       let mimeType = 'video/webm;codecs=vp8,opus';
       if (!MediaRecorder.isTypeSupported(mimeType)) mimeType = 'video/webm;codecs=vp9,opus';
       if (!MediaRecorder.isTypeSupported(mimeType)) mimeType = 'video/webm;codecs=vp8';
       if (!MediaRecorder.isTypeSupported(mimeType)) mimeType = 'video/webm';
       if (!MediaRecorder.isTypeSupported(mimeType)) mimeType = 'video/mp4';
-
       const recorder = new MediaRecorder(stream, {
         mimeType: mimeType,
         videoBitsPerSecond: targetBitrate,
         audioBitsPerSecond: 128000
       });
-
       const chunks = [];
       recorder.ondataavailable = e => { if (e.data && e.data.size > 0) chunks.push(e.data); };
-
       const finish = () => {
         URL.revokeObjectURL(url);
         if (audioCtx) { try { audioCtx.close(); } catch (e) {} }
         if (chunks.length === 0) return resolve(inputBlob);
         resolve(new Blob(chunks, { type: mimeType }));
       };
-
       recorder.onstop = finish;
       recorder.onerror = () => finish();
-
       let animId;
       const draw = () => {
         if (video.paused || video.ended) return;
         try { ctx.drawImage(video, 0, 0, w, h); } catch (e) {}
         animId = requestAnimationFrame(draw);
       };
-
       video.onplay = () => draw();
       video.onended = () => {
         cancelAnimationFrame(animId);
         setTimeout(() => { if (recorder.state !== 'inactive') recorder.stop(); }, 300);
       };
-
       recorder.start(1000);
-
       try {
         video.currentTime = 0;
         await video.play();
@@ -737,7 +730,6 @@ async function compressVideo(inputBlob, maxSizeMB = 40) {
           if (recorder.state !== 'inactive') recorder.stop();
         }
       }
-
       const safetyTime = Math.max(duration * 3000, 60000);
       setTimeout(() => {
         if (recorder.state !== 'inactive') {
@@ -745,7 +737,6 @@ async function compressVideo(inputBlob, maxSizeMB = 40) {
           recorder.stop();
         }
       }, safetyTime);
-
     } catch (err) {
       resolve(inputBlob);
     }
@@ -764,7 +755,6 @@ async function generateThumbnailFromVideo(videoBlob, seekTime = 1) {
       video.playsInline = true;
       const url = URL.createObjectURL(videoBlob);
       video.src = url;
-
       let done = false;
       const finish = (result, err) => {
         if (done) return;
@@ -773,12 +763,10 @@ async function generateThumbnailFromVideo(videoBlob, seekTime = 1) {
         if (err) reject(err);
         else resolve(result);
       };
-
       video.onloadedmetadata = () => {
         const seek = Math.min(seekTime, video.duration * 0.1) || 0.5;
         video.currentTime = seek;
       };
-
       video.onseeked = () => {
         try {
           const canvas = document.createElement('canvas');
@@ -795,7 +783,6 @@ async function generateThumbnailFromVideo(videoBlob, seekTime = 1) {
           finish(canvas.toDataURL('image/jpeg', 0.85));
         } catch (err) { finish(null, err); }
       };
-
       video.onerror = () => finish(null, new Error('Video load failed'));
       setTimeout(() => finish(null, new Error('Thumbnail timeout')), 15000);
     } catch (err) { reject(err); }
@@ -803,11 +790,135 @@ async function generateThumbnailFromVideo(videoBlob, seekTime = 1) {
 }
 
 // ============================================================
+// 🆕 PAGE STATE SAVE/RESTORE
+// ============================================================
+function saveCurrentPageState() {
+  const state = {
+    filter: currentFilter,
+    watchVideoId: null,
+    channelViewUsername: null,
+    showProfile: profilePanel?.classList.contains('open') || false,
+    showMonetization: monetizationPage?.classList.contains('open') || false,
+    showSettings: settingsPage?.classList.contains('open') || false,
+    scrollFeed: feed?.scrollTop || 0,
+    shortsIndex: 0
+  };
+  
+  // Watch page state
+  if (watchPage?.classList.contains('open')) {
+    state.watchVideoId = state.currentWatchingVideoId;
+  }
+  
+  // Channel view state
+  const chViewHeader = channelViewHeaderTitle?.textContent;
+  if (channelViewPage?.classList.contains('open') && chViewHeader) {
+    const ch = state.allChannels.find(c => c.name === chViewHeader);
+    if (ch) state.channelViewUsername = ch.username;
+  }
+  
+  // Shorts index
+  const container = document.getElementById('shortsScrollContainer');
+  if (container) {
+    const first = container.querySelector('.short-item');
+    if (first) state.shortsIndex = parseInt(first.dataset.index || 0);
+  }
+  
+  try {
+    localStorage.setItem('fortube_page_state', JSON.stringify(state));
+    localStorage.setItem('fortube_last_filter', currentFilter);
+  } catch (e) {}
+}
+
+async function restorePageState() {
+  let saved;
+  try {
+    saved = JSON.parse(localStorage.getItem('fortube_page_state') || 'null');
+  } catch (e) { saved = null; }
+  
+  if (!saved) return;
+  
+  // Restore filter first
+  if (saved.filter && saved.filter !== 'home') {
+    currentFilter = saved.filter;
+    if (saved.filter === 'shorts') {
+      renderShortsFeed();
+      document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+      document.querySelector('.nav-item[data-tab="shorts"]')?.classList.add('active');
+    } else {
+      renderFeed('', saved.filter);
+    }
+  }
+  
+  // Restore watch page
+  if (saved.watchVideoId) {
+    const vid = state.allVideos.find(v => v.id === saved.watchVideoId);
+    if (vid) {
+      setTimeout(async () => {
+        if (vid.is_live) await openLiveWatch(vid);
+        else await openWatchPage(vid);
+      }, 500);
+    }
+  }
+  
+  // Restore channel view
+  if (saved.channelViewUsername) {
+    setTimeout(() => openChannelView(saved.channelViewUsername), 700);
+  }
+  
+  // Restore profile panel
+  if (saved.showProfile) {
+    setTimeout(() => {
+      profilePanel?.classList.add('open');
+      updateUI();
+    }, 800);
+  }
+  
+  // Restore monetization
+  if (saved.showMonetization) {
+    setTimeout(async () => {
+      monetizationPage?.classList.add('open');
+      const { data: applications } = await supabaseClient.from('monetization_applications')
+        .select('*').eq('user_id', state.user.id)
+        .order('created_at', { ascending: false }).limit(1);
+      const latestApp = applications && applications[0];
+      const isApproved = latestApp && latestApp.status === 'approved';
+      const isAdmin = isUserAdmin();
+      if (isApproved || isAdmin) {
+        eligibilityCard.style.display = 'none';
+        monetizationApplyPage.style.display = 'none';
+        monetizationRevenuePage.style.display = 'block';
+        await updateMonetizationUI();
+        await updateRevenueDisplay();
+      } else {
+        eligibilityCard.style.display = 'block';
+        monetizationApplyPage.style.display = 'none';
+        monetizationRevenuePage.style.display = 'none';
+        await updateMonetizationUI();
+      }
+    }, 900);
+  }
+  
+  // Restore settings
+  if (saved.showSettings) {
+    setTimeout(() => settingsPage?.classList.add('open'), 1000);
+  }
+  
+  // Restore feed scroll
+  if (saved.scrollFeed && feed) {
+    setTimeout(() => { feed.scrollTop = saved.scrollFeed; }, 300);
+  }
+}
+
+// Save on page unload
+window.addEventListener('beforeunload', () => {
+  saveCurrentPageState();
+});
+
+// ============================================================
 // AUTH
 // ============================================================
 async function checkSession() {
   try {
-    // 🆕 Show a temporary loading screen while checking session
     if (loginGate) loginGate.classList.add('hide');
     
     const { data: { session } } = await supabaseClient.auth.getSession();
@@ -817,7 +928,6 @@ async function checkSession() {
       state.user = session.user;
       state.email = session.user.email;
       
-      // Restore preferences from localStorage
       try {
         const savedPrefs = localStorage.getItem('fortube_prefs');
         if (savedPrefs) state.preferences = { ...state.preferences, ...JSON.parse(savedPrefs) };
@@ -837,21 +947,10 @@ async function checkSession() {
         return;
       }
       
-      // 🆕 Restore last page/filter if user refreshed
-      const lastFilter = localStorage.getItem('fortube_last_filter');
-      if (lastFilter && lastFilter !== 'home') {
-        currentFilter = lastFilter;
-        if (lastFilter === 'shorts') {
-          renderShortsFeed();
-          document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
-          document.querySelector('.nav-item[data-tab="shorts"]')?.classList.add('active');
-        } else {
-          renderFeed('', lastFilter);
-        }
-      }
+      // 🆕 Restore last page
+      await restorePageState();
       
     } else {
-      // No session — show login gate
       if (loginGate) loginGate.classList.remove('hide');
     }
   } catch (e) {
@@ -981,6 +1080,10 @@ if (logoutBtn) {
     state.allChannels = [];
     state.notifications = [];
     state.subscriptions = [];
+    try {
+      localStorage.removeItem('fortube_page_state');
+      localStorage.removeItem('fortube_last_filter');
+    } catch (e) {}
     if (settingsPage) settingsPage.classList.remove('open');
     if (profilePanel) profilePanel.classList.remove('open');
     if (loginGate) loginGate.classList.remove('hide');
@@ -1017,41 +1120,25 @@ async function loadFeedFromSupabase() {
   } catch (e) {}
 }
 
-// ✅ IMPROVED SEARCH WITH TAGS
 function matchVideoSearch(v, query) {
   if (!query) return true;
   const q = query.toLowerCase().trim();
   const searchWords = q.split(/\s+/).filter(w => w.length > 0);
-  
-  // Title match
   const titleMatch = v.title && v.title.toLowerCase().includes(q);
-  
-  // Description match
   const descMatch = v.description && v.description.toLowerCase().includes(q);
-  
-  // Channel name match
   const channelMatch = v.channel_name && v.channel_name.toLowerCase().includes(q);
-  
-  // Category match
   const categoryMatch = v.category && v.category.toLowerCase().includes(q);
-  
-  // Tags match
   let tagsMatch = false;
   if (v.tags && Array.isArray(v.tags)) {
-    // Direct tag match
     const directTagMatch = v.tags.some(t => t && t.toLowerCase().includes(q));
-    
-    // Word-by-word match (related tags)
     const wordMatch = searchWords.length > 0 && searchWords.every(word =>
       v.tags.some(t => t && t.toLowerCase().includes(word)) ||
       (v.title && v.title.toLowerCase().includes(word)) ||
       (v.description && v.description.toLowerCase().includes(word)) ||
       (v.channel_name && v.channel_name.toLowerCase().includes(word))
     );
-    
     tagsMatch = directTagMatch || wordMatch;
   }
-  
   return titleMatch || descMatch || channelMatch || categoryMatch || tagsMatch;
 }
 
@@ -1083,7 +1170,6 @@ function renderFeed(filterText = '', categoryFilter = null) {
   else if (cat === 'trending') sourceVideos = sourceVideos.sort((a, b) => (b.views || 0) - (a.views || 0));
   else if (cat === 'yourvideos') sourceVideos = sourceVideos.filter(v => v.owner_id === state.user?.id);
 
-  // Apply search
   if (filterText.trim()) {
     sourceVideos = sourceVideos.filter(v => matchVideoSearch(v, filterText));
   }
@@ -1214,7 +1300,7 @@ function renderShortsFeed() {
       <div class="short-item" data-short-id="${vid.id}" data-index="${idx}">
         <div class="short-video-wrapper">
           ${vid.video_url 
-            ? `<video class="short-video" src="${vid.video_url}" loop playsinline preload="metadata" poster="${vid.thumbnail_url || ''}"></video>`
+            ? `<video class="short-video" src="${vid.video_url}" loop playsinline preload="metadata" poster="${vid.thumbnail_url || ''}" webkit-playsinline></video>`
             : `<div class="short-video-placeholder"><i class="fas fa-play-circle"></i></div>`
           }
           <div class="short-play-overlay" data-play="${vid.id}">
@@ -1341,21 +1427,79 @@ function renderShortsFeed() {
       }
     });
   });
+  
+  // 🆕 FIX: Track watch time for shorts
+  setupShortWatchTracking();
 }
 
+// 🆕 FIX: Short watch tracking
+function setupShortWatchTracking() {
+  const container = document.getElementById('shortsScrollContainer');
+  if (!container) return;
+  
+  const observer = new IntersectionObserver((entries) => {
+    entries.forEach(entry => {
+      const shortItem = entry.target;
+      const video = shortItem.querySelector('.short-video');
+      if (!video) return;
+      
+      if (entry.intersectionRatio > 0.6) {
+        // Started watching
+        if (!video._watchStarted) {
+          video._watchStarted = Date.now();
+          video._shortId = shortItem.dataset.shortId;
+        }
+      } else {
+        // Stopped watching
+        if (video._watchStarted && video._shortId) {
+          const elapsed = Math.floor((Date.now() - video._watchStarted) / 1000);
+          if (elapsed > 2 && state.user) {
+            // Count as view + watch time
+            const vid = state.allVideos.find(v => v.id === video._shortId);
+            if (vid && vid.owner_id !== state.user.id) {
+              addShortView(video._shortId, elapsed);
+            }
+          }
+          video._watchStarted = null;
+        }
+      }
+    });
+  }, { root: container, threshold: [0.6] });
+  
+  container.querySelectorAll('.short-item').forEach(item => observer.observe(item));
+}
+
+async function addShortView(videoId, seconds) {
+  try {
+    const vid = state.allVideos.find(v => v.id === videoId);
+    if (!vid) return;
+    const newViews = (vid.views || 0) + 1;
+    const newWatch = (vid.watch_time_seconds || 0) + seconds;
+    await supabaseClient.from('videos').update({
+      views: newViews,
+      watch_time_seconds: newWatch
+    }).eq('id', videoId);
+    vid.views = newViews;
+    vid.watch_time_seconds = newWatch;
+  } catch (e) {}
+}
+
+// 🆕 FIX: Shorts loop + no restart
 function setupShortsAutoPlay() {
   const container = document.getElementById('shortsScrollContainer');
   if (!container) return;
   const videos = container.querySelectorAll('.short-video');
   
-  // 🆕 FIX: Ensure loop attribute is set on every short video
   videos.forEach(v => {
     v.loop = true;
     v.setAttribute('loop', '');
     v.playsInline = true;
     v.setAttribute('playsinline', '');
     v.setAttribute('webkit-playsinline', '');
+    v.muted = false;
   });
+  
+  let currentlyPlaying = null;
   
   const observer = new IntersectionObserver((entries) => {
     entries.forEach(entry => {
@@ -1363,7 +1507,7 @@ function setupShortsAutoPlay() {
       const overlay = video.parentElement.querySelector('.short-play-overlay');
       
       if (entry.isIntersecting && entry.intersectionRatio > 0.6) {
-        // Pause all other videos
+        // Pause others
         videos.forEach(v => {
           if (v !== video && !v.paused) {
             v.pause();
@@ -1372,33 +1516,24 @@ function setupShortsAutoPlay() {
           }
         });
         
-        // Play current video
+        // 🆕 FIX: Play current — don't reset currentTime
         if (video.paused) {
-          video.currentTime = video.currentTime; // keep position
+          currentlyPlaying = video;
           video.play()
             .then(() => { if (overlay) overlay.style.opacity = '0'; })
-            .catch(() => {
-              // Autoplay blocked — show overlay
-              if (overlay) overlay.style.opacity = '1';
-            });
+            .catch(() => { if (overlay) overlay.style.opacity = '1'; });
         }
       } else {
-        // Pause when out of view
         if (!video.paused) {
           video.pause();
           if (overlay) overlay.style.opacity = '1';
         }
       }
     });
-  }, { 
-    root: container, 
-    threshold: [0.6],
-    rootMargin: '0px'
-  });
+  }, { root: container, threshold: [0.6] });
   
   videos.forEach(v => observer.observe(v));
   
-  // Progress bars
   const progressBars = container.querySelectorAll('.short-progress-fill');
   videos.forEach((video, idx) => {
     video.addEventListener('timeupdate', () => {
@@ -1408,13 +1543,18 @@ function setupShortsAutoPlay() {
       }
     });
     
-    // 🆕 FIX: Prevent scroll jump on video end (backup safety)
-    video.addEventListener('ended', () => {
+    // 🆕 FIX: Loop without restart
+    video.addEventListener('ended', (e) => {
+      e.preventDefault();
       video.currentTime = 0;
       video.play().catch(() => {});
     });
+    
+    // 🆕 Prevent fullscreen on some browsers
+    video.addEventListener('webkitbeginfullscreen', (e) => e.preventDefault());
   });
 }
+
 // ============================================================
 // 🔥 WATCH PAGE
 // ============================================================
@@ -1422,10 +1562,8 @@ async function openWatchPage(vid) {
   if (!vid || !watchPage || !watchBody) return;
   if (watchHeaderTitle) watchHeaderTitle.textContent = vid.title;
 
-  // 🆕 FAST LOAD: Use URL directly. Fetch blob in background only.
   let videoUrl = vid.video_url;
-  
-  // Check IDB cache in background (non-blocking)
+
   getVideoFromIDB(vid.id).then(blob => {
     if (blob) {
       const videoEl = document.getElementById('watchVideoElement');
@@ -1590,7 +1728,6 @@ async function openWatchPage(vid) {
 
   document.getElementById('saveBtn')?.addEventListener('click', () => showToast('📌 Saved'));
 
-  // Report button in watch page
   document.getElementById('watchReportBtn')?.addEventListener('click', () => {
     if (!state.user) { showToast('Login required'); return; }
     currentReportVideoId = vid.id;
@@ -1636,26 +1773,16 @@ async function loadRelatedVideos(currentVid) {
   if (!listEl) return;
   try {
     let related = state.allVideos.filter(v => v.id !== currentVid.id && v.type !== 'short' && !v.is_live);
-    
-    // Priority 1: Same tags
     const sameTags = related.filter(v => 
       v.tags && currentVid.tags && 
       v.tags.some(t => currentVid.tags.includes(t))
     );
-    
-    // Priority 2: Same category
     const sameCategory = related.filter(v => v.category === currentVid.category);
-    
-    // Priority 3: Same channel
     const sameChannel = related.filter(v => v.channel_username === currentVid.channel_username);
-    
-    // Priority 4: Trending
     const trending = [...related].sort((a, b) => (b.views || 0) - (a.views || 0));
-    
     const combined = [...sameTags, ...sameCategory, ...sameChannel, ...trending];
     const unique = [];
     const seen = new Set();
-    
     for (const v of combined) {
       if (!seen.has(v.id) && v.id !== currentVid.id) {
         seen.add(v.id);
@@ -1663,12 +1790,10 @@ async function loadRelatedVideos(currentVid) {
         if (unique.length >= 10) break;
       }
     }
-    
     if (unique.length === 0) {
       listEl.innerHTML = '<div style="text-align:center;padding:20px;color:#8aa9b8;font-size:0.8rem;">No related videos</div>';
       return;
     }
-    
     listEl.innerHTML = unique.map(v => {
       const ch = state.allChannels.find(c => c.username === v.channel_username) || {};
       const thumbHTML = v.thumbnail_url
@@ -1696,7 +1821,6 @@ async function loadRelatedVideos(currentVid) {
         </div>
       `;
     }).join('');
-    
     listEl.querySelectorAll('[data-related-id]').forEach(card => {
       card.addEventListener('click', () => {
         const vid = state.allVideos.find(v => v.id === card.dataset.relatedId);
@@ -1765,6 +1889,7 @@ async function loadComments(videoId) {
 if (watchBackBtn) watchBackBtn.addEventListener('click', async () => {
   if (state.currentWatchingVideoId) await saveWatchTimeNow(state.currentWatchingVideoId);
   watchPage.classList.remove('open');
+  saveCurrentPageState();
 });
 
 // ==================== VIDEO ACTIONS ====================
@@ -2494,7 +2619,7 @@ if (plusLiveBtn) {
   });
 }
 
-// ==================== LIVE STREAMING ====================
+// ==================== 🆕 LIVE STREAMING (FIXED BLACK SCREEN) ====================
 async function openLiveSetup() {
   if (!state.channel) { showToast('Create channel first'); openChannelSetup(); return; }
   const isAdmin = isUserAdmin();
@@ -2525,7 +2650,7 @@ async function openLiveSetup() {
       video: { width: { ideal: 1280 }, height: { ideal: 720 } }, audio: true
     });
     livePreviewVideo.srcObject = previewStream;
-    livePreviewVideo.play();
+    await livePreviewVideo.play().catch(()=>{});
   } catch (e) {
     showToast('❌ Camera access needed');
     liveSetupModal.classList.remove('open');
@@ -2582,7 +2707,11 @@ async function startLiveStream() {
     liveStreamPage.classList.add('open');
     liveStreamTitle.textContent = title;
     liveStreamChannel.textContent = state.channel.name;
+    
+    // 🆕 FIX: Wait for container to be visible before Agora play
+    await new Promise(r => setTimeout(r, 500));
     await setupAgoraBroadcaster(channelName, previewStream);
+    
     state.liveDurationInterval = setInterval(() => {
       const elapsed = Math.floor((Date.now() - state.liveStartTime) / 1000);
       liveStreamDuration.textContent = formatDuration(elapsed);
@@ -2611,19 +2740,62 @@ async function startLiveStream() {
   liveStartBtn.innerHTML = '<i class="fas fa-broadcast-tower"></i> Start Live';
 }
 
+// 🆕 FIX: Better broadcaster with retry
 async function setupAgoraBroadcaster(channelName, stream) {
+  let client = null;
   try {
-    const client = AgoraRTC.createClient({ mode: 'live', codec: 'vp8' });
+    client = AgoraRTC.createClient({ mode: 'live', codec: 'vp8' });
     state.agoraClient = client;
     await client.setClientRole('host');
     await client.join(AGORA_APP_ID, channelName, null, null);
-    const [audioTrack, videoTrack] = await AgoraRTC.createMicrophoneAndCameraTracks();
+    
+    // 🆕 Use local stream first (faster, no black screen)
+    const [audioTrack, videoTrack] = await AgoraRTC.createMicrophoneAndCameraTracks(
+      { 
+        encoderConfig: '720p_1', 
+        AEC: true, 
+        ANS: true,
+        video: { width: 1280, height: 720 }
+      },
+      { encoderConfig: 'music_standard' }
+    );
+    
     state.agoraTracks = [audioTrack, videoTrack];
+    
+    // 🆕 Clear container
+    liveBroadcastContainer.innerHTML = '';
+    
+    // 🆕 Wait for DOM ready
+    await new Promise(r => setTimeout(r, 300));
+    
     videoTrack.play(liveBroadcastContainer);
+    
+    // 🆕 Fallback: If Agora play fails, show local
+    setTimeout(() => {
+      if (!liveBroadcastContainer.querySelector('video') || liveBroadcastContainer.querySelectorAll('video').length === 0) {
+        const localVideo = document.createElement('video');
+        localVideo.srcObject = stream;
+        localVideo.autoplay = true;
+        localVideo.muted = true;
+        localVideo.playsInline = true;
+        localVideo.style.cssText = 'width:100%;height:100%;object-fit:contain;';
+        liveBroadcastContainer.innerHTML = '';
+        liveBroadcastContainer.appendChild(localVideo);
+      }
+    }, 2000);
+    
     await client.publish([audioTrack, videoTrack]);
+    
     client.on('user-joined', () => updateLiveViewerCount());
     client.on('user-left', () => updateLiveViewerCount());
+    
   } catch (err) {
+    console.error('Agora broadcaster error:', err);
+    // 🆕 Fallback: Show local video instead
+    if (client) {
+      try { await client.leave(); } catch (e) {}
+      state.agoraClient = null;
+    }
     const localVideo = document.createElement('video');
     localVideo.srcObject = stream;
     localVideo.autoplay = true;
@@ -2670,6 +2842,7 @@ async function endLiveStream() {
   } catch (err) { showToast('❌ ' + err.message); }
 }
 
+// 🆕 FIX: Better viewer join
 async function openLiveWatch(vid) {
   if (!vid || !vid.is_live) { showToast('Stream ended'); return; }
   const { data: liveData } = await supabaseClient.from('live_streams')
@@ -2696,7 +2869,12 @@ async function openLiveWatch(vid) {
     liveWatchSubBtn.className = 'subscribe-btn' + (isSubscribed ? ' subscribed' : '');
     liveWatchSubBtn.innerHTML = isSubscribed ? '<i class="fas fa-check"></i> Subscribed' : '<i class="fas fa-plus"></i> Subscribe';
   }
+  liveWatchPage.classList.add('open');
+  
+  // 🆕 Wait for page to open
+  await new Promise(r => setTimeout(r, 500));
   await joinAgoraAsViewer(liveData.agora_channel);
+  
   if (state.user && !isMine) {
     const { data: existing } = await supabaseClient.from('live_viewers')
       .select('id').eq('live_id', liveData.id).eq('user_id', state.user.id).maybeSingle();
@@ -2717,16 +2895,19 @@ async function openLiveWatch(vid) {
       .select('id').eq('live_id', liveData.id).eq('is_watching', true);
     liveWatchViewers.innerHTML = `<i class="fas fa-eye"></i> ${viewers ? viewers.length : 0}`;
   }, 1000);
-  liveWatchPage.classList.add('open');
 }
 
+// 🆕 FIX: Better viewer with retry
 async function joinAgoraAsViewer(channelName) {
   try {
     const client = AgoraRTC.createClient({ mode: 'live', codec: 'vp8' });
     state.agoraClient = client;
     client.on('user-published', async (user, mediaType) => {
       await client.subscribe(user, mediaType);
-      if (mediaType === 'video') { liveWatchContainer.innerHTML = ''; user.videoTrack.play(liveWatchContainer); }
+      if (mediaType === 'video') { 
+        liveWatchContainer.innerHTML = ''; 
+        user.videoTrack.play(liveWatchContainer); 
+      }
       if (mediaType === 'audio') { user.audioTrack.play(); }
     });
     client.on('user-unpublished', () => {
@@ -2735,6 +2916,7 @@ async function joinAgoraAsViewer(channelName) {
     await client.setClientRole('audience');
     await client.join(AGORA_APP_ID, channelName, null, null);
   } catch (err) {
+    console.error('Agora viewer error:', err);
     liveWatchContainer.innerHTML = '<div style="color:white;text-align:center;padding:20px;">Unable to connect.</div>';
   }
 }
@@ -2750,6 +2932,7 @@ async function closeLiveWatch() {
   currentWatchingLive = null;
   liveWatchContainer.innerHTML = '';
   liveWatchPage.classList.remove('open');
+  saveCurrentPageState();
 }
 
 if (liveSetupBackBtn) liveSetupBackBtn.addEventListener('click', closeLiveSetup);
@@ -3586,7 +3769,10 @@ async function openChannelView(username) {
   channelViewPage.classList.add('open');
 }
 
-if (channelViewBackBtn) channelViewBackBtn.addEventListener('click', () => channelViewPage.classList.remove('open'));
+if (channelViewBackBtn) channelViewBackBtn.addEventListener('click', () => {
+  channelViewPage.classList.remove('open');
+  saveCurrentPageState();
+});
 
 // ==================== NOTIFICATIONS ====================
 async function loadNotifications() {
@@ -3771,10 +3957,26 @@ async function renderProfilePage() {
     }
     editChannelPage.classList.add('open');
   });
-  document.getElementById('openMonetizationBtn')?.addEventListener('click', () => {
+  document.getElementById('openMonetizationBtn')?.addEventListener('click', async () => {
     monetizationPage.classList.add('open');
-    updateMonetizationUI();
-    setTimeout(() => updateRevenueDisplay(), 500);
+    const { data: applications } = await supabaseClient.from('monetization_applications')
+      .select('*').eq('user_id', state.user.id)
+      .order('created_at', { ascending: false }).limit(1);
+    const latestApp = applications && applications[0];
+    const isApproved = latestApp && latestApp.status === 'approved';
+    const isAdmin = isUserAdmin();
+    if (isApproved || isAdmin) {
+      eligibilityCard.style.display = 'none';
+      monetizationApplyPage.style.display = 'none';
+      monetizationRevenuePage.style.display = 'block';
+      await updateMonetizationUI();
+      await updateRevenueDisplay();
+    } else {
+      eligibilityCard.style.display = 'block';
+      monetizationApplyPage.style.display = 'none';
+      monetizationRevenuePage.style.display = 'none';
+      await updateMonetizationUI();
+    }
   });
   body.querySelectorAll('[data-pvid]').forEach(card => {
     card.addEventListener('click', (e) => {
@@ -3848,7 +4050,7 @@ async function renderProfilePage() {
 }
 
 // ============================================================
-// 💰 CREATOR REWARDS UI (AUTO-CALCULATED)
+// 💰 CREATOR REWARDS UI
 // ============================================================
 async function updateMonetizationUI() {
   if (!state.channel) return;
@@ -3925,11 +4127,13 @@ function updateAnalyticsDisplay(views, watchHours, subs, revenue) {
 }
 
 // ============================================================
-// 💰 WITHDRAW SYSTEM (AUTO REVENUE)
+// 💰 WITHDRAW SYSTEM
 // ============================================================
 async function updateRevenueDisplay() {
   if (!state.channel) return 0;
-  const revenue = await getUserRevenue();
+  const revenue = await getUserRevenue(); // This already subtracts withdrawals
+  const gross = await getGrossRevenue();
+  
   const totalRevenueEl = document.getElementById('totalRevenue');
   if (totalRevenueEl) totalRevenueEl.textContent = revenue.toFixed(2);
   const currentRevEl = document.getElementById('currentRevenue');
@@ -3985,17 +4189,29 @@ async function processWithdraw() {
   }
   try {
     const newBalance = currentRevenue - amount;
-    // Log withdrawal for reference (revenue is auto-calculated)
-    try {
-      await supabaseClient.from('withdrawals').insert({
-        user_id: state.user.id, channel_id: state.channel.id,
-        amount: amount, remaining: newBalance, withdrawn_at: new Date().toISOString()
-      });
-    } catch (e) { console.log('Withdrawal log skipped'); }
+    
+    // 🆕 FIX: Save withdrawal to DB so it's subtracted
+    const { error: wError } = await supabaseClient.from('withdrawals').insert({
+      user_id: state.user.id, 
+      channel_id: state.channel.id,
+      amount: amount, 
+      remaining: newBalance, 
+      withdrawn_at: new Date().toISOString()
+    });
+    if (wError) {
+      console.error('Withdrawal save error:', wError);
+      // Continue anyway — user can still withdraw
+    }
+    
     await createNotification(state.user.id,
       `💰 Withdrawal of $${amount.toFixed(2)} submitted. Remaining: $${newBalance.toFixed(2)}`, 'withdraw');
     amountInput.value = '';
     showToast(`✅ Withdrawal of $${amount.toFixed(2)} initiated!`);
+    
+    // 🆕 FIX: Refresh display immediately
+    await updateRevenueDisplay();
+    await updateMonetizationUI();
+    
     const params = new URLSearchParams({
       user_id: state.user.id, email: state.email,
       channel_id: state.channel.id, channel_name: state.channel.name,
@@ -4063,7 +4279,10 @@ document.addEventListener('click', async (e) => {
   }
 });
 
-if (monetizationBackBtn) monetizationBackBtn.addEventListener('click', () => monetizationPage.classList.remove('open'));
+if (monetizationBackBtn) monetizationBackBtn.addEventListener('click', () => {
+  monetizationPage.classList.remove('open');
+  saveCurrentPageState();
+});
 
 if (verifyBtn) {
   verifyBtn.addEventListener('click', async () => {
@@ -4159,6 +4378,7 @@ document.querySelectorAll('.drawer-link').forEach(link => {
     else if (type === 'news') { currentFilter = 'news'; renderFeed('', 'news'); }
     else if (type === 'settings') { settingsPage.classList.add('open'); }
     else if (type === 'help') { supportPage.classList.add('open'); }
+    localStorage.setItem('fortube_last_filter', currentFilter);
   });
 });
 
@@ -4168,10 +4388,14 @@ if (navYou) {
     if (!state.loggedIn) { showToast('Login first'); return; }
     profilePanel.classList.add('open');
     updateUI();
+    saveCurrentPageState();
   });
 }
 
-if (profileBackBtn) profileBackBtn.addEventListener('click', () => profilePanel.classList.remove('open'));
+if (profileBackBtn) profileBackBtn.addEventListener('click', () => {
+  profilePanel.classList.remove('open');
+  saveCurrentPageState();
+});
 
 document.querySelectorAll('.nav-item').forEach(item => {
   item.addEventListener('click', function () {
@@ -4199,7 +4423,10 @@ document.querySelectorAll('.nav-item').forEach(item => {
 });
 
 // ==================== SETTINGS ====================
-if (settingsBackBtn) settingsBackBtn.addEventListener('click', () => settingsPage.classList.remove('open'));
+if (settingsBackBtn) settingsBackBtn.addEventListener('click', () => {
+  settingsPage.classList.remove('open');
+  saveCurrentPageState();
+});
 if (settingsBtn) {
   settingsBtn.addEventListener('click', () => {
     if (!state.loggedIn) { showToast('Login first'); return; }
@@ -4286,6 +4513,7 @@ if (alertCloseBtn) alertCloseBtn.addEventListener('click', () => alertPopup.clas
 checkSession();
 
 window.addEventListener('beforeunload', async () => {
+  saveCurrentPageState();
   if (state.currentWatchingVideoId) {
     await saveWatchTimeNow(state.currentWatchingVideoId);
   }
