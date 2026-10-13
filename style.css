@@ -1116,7 +1116,7 @@ body {
 .profile-name-new {
     font-size: 1.15rem;
     font-weight: 800;
-    color: #0b2d3b;
+    color: #1e8b4b;              /* ← GREEN color */
     display: flex;
     align-items: center;
     gap: 6px;
