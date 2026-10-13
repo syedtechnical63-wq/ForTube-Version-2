@@ -1,5 +1,5 @@
 /* ============================================================
-   FORTUBE v23 - ANALYTICS + VERIFIED BADGE + REVENUE FIX
+   FORTUBE v24 - REVENUE FIX + CHANNEL NAME ON BANNER
    ============================================================ */
 
 const SUPABASE_URL = "https://eaxstlpltwgpmaupgcwq.supabase.co";
@@ -20,11 +20,13 @@ const ADMIN_EMAILS = ["syedtechnical63@gmail.com"];
 
 const WITHDRAW_URL = "https://syedtechnical63-wq.github.io/withdrawal/";
 
-const REVENUE_PER_500_SUBS = 1.00;
-const REVENUE_PER_1000_HOURS = 0.50;
+// 🆕 NEW REVENUE RATES
+const REVENUE_PER_500_SUBS = 0.50;        // $0.50 per 500 subs
+const REVENUE_PER_1000_HOURS = 1.00;      // $1.00 per 1000 hours
+const REVENUE_PER_1000_VIEWS = 0.08;      // $0.08 per 1000 views
 const MIN_WITHDRAWAL = 10.00;
 const MIN_WITHDRAW_AMOUNT = 10.00;
-const VERIFIED_THRESHOLD = 100000; // 100K subscribers
+const VERIFIED_THRESHOLD = 100000;
 
 // ==================== INDEXEDDB ====================
 const IDB_NAME = 'fortube_videos_db';
@@ -403,7 +405,6 @@ function isUserAdmin() {
   return state.email && ADMIN_EMAILS.includes(state.email.toLowerCase());
 }
 
-// 🆕 VERIFIED BADGE: Only shows if 100K+ subs
 function isVerifiedChannel(channel) {
   if (!channel) return false;
   return (channel.subscribers_count || 0) >= VERIFIED_THRESHOLD;
@@ -415,21 +416,25 @@ function getVerifiedBadgeHTML(channel) {
 }
 
 // ============================================================
-// 💰 REVENUE CALCULATION
+// 💰 REVENUE CALCULATION — NEW RATES
 // ============================================================
 function calculateRevenue(subscribers, watchHours, totalViews) {
+  // $0.50 per 500 subscribers
   const subRevenue = (subscribers / 500) * REVENUE_PER_500_SUBS;
+  // $1.00 per 1000 watch hours
   const watchRevenue = (watchHours / 1000) * REVENUE_PER_1000_HOURS;
-  const viewBonus = totalViews * 0.00001;
+  // $0.08 per 1000 views
+  const viewRevenue = (totalViews / 1000) * REVENUE_PER_1000_VIEWS;
+  
   return {
     subRevenue: subRevenue,
     watchRevenue: watchRevenue,
-    viewBonus: viewBonus,
-    total: subRevenue + watchRevenue + viewBonus
+    viewRevenue: viewRevenue,
+    viewBonus: viewRevenue, // backwards compat
+    total: subRevenue + watchRevenue + viewRevenue
   };
 }
 
-// ⭐ REVENUE WITH WITHDRAWAL TRACKING
 async function getUserRevenue() {
   if (!state.channel || !state.user) return 0;
   try {
@@ -451,7 +456,6 @@ async function getUserRevenue() {
     const subs = state.channel.subscribers_count || 0;
     const revenue = calculateRevenue(subs, watchHours, totalViews);
     
-    // Subtract withdrawn
     let withdrawn = 0;
     try {
       const { data: withdrawals } = await supabaseClient
@@ -586,43 +590,34 @@ function generateGrowthData(currentTotal, days) {
 }
 
 // ============================================================
-// 📊 NEW: FULL ANALYTICS PAGE
+// 📊 ANALYTICS PAGE
 // ============================================================
 async function openAnalyticsPage() {
   if (!state.channel || !state.user) { showToast('Create channel first'); return; }
-  
-  // Get all data
   const { data: videos } = await supabaseClient
     .from('videos').select('*').eq('owner_id', state.user.id)
     .order('created_at', { ascending: false });
-  
   const allVideos = videos || [];
   const totalViews = allVideos.reduce((s, v) => s + (v.views || 0), 0);
   const totalWatch = allVideos.reduce((s, v) => s + (v.watch_time_seconds || 0), 0);
   const watchHours = Math.floor(totalWatch / 3600);
   const subs = state.channel.subscribers_count || 0;
-  
-  // CPM/RPM calculation
   const grossRevenue = await getGrossRevenue();
   const cpm = totalViews > 0 ? (grossRevenue / totalViews) * 1000 : 0;
   const rpm = totalViews > 0 ? (grossRevenue / totalViews) * 1000 : 0;
   
-  // Region stats (simulated from data)
   const regions = ['Pakistan', 'India', 'United States', 'United Kingdom', 'Global'];
   const regionData = regions.map(r => ({
     name: r,
     views: Math.floor(totalViews * (Math.random() * 0.4 + 0.05))
   })).sort((a, b) => b.views - a.views);
   
-  // Build HTML
   const analyticsHTML = `
     <div class="analytics-page-header">
       <button class="back-btn" id="analyticsBackBtn"><i class="fas fa-arrow-left"></i></button>
       <h3><i class="fas fa-chart-line"></i> Channel Analytics</h3>
     </div>
     <div class="analytics-page-body">
-      
-      <!-- OVERVIEW CARDS -->
       <div class="analytics-overview-grid">
         <div class="analytics-stat-card">
           <i class="fas fa-eye"></i>
@@ -645,29 +640,23 @@ async function openAnalyticsPage() {
           <div class="analytics-stat-label">Total Revenue</div>
         </div>
       </div>
-      
-      <!-- CPM / RPM -->
       <div class="analytics-section">
         <div class="analytics-section-title"><i class="fas fa-coins"></i> CPM & RPM</div>
         <div class="analytics-cpm-grid">
           <div class="analytics-cpm-card">
-            <div class="analytics-cpm-label">CPM (Cost per 1000 views)</div>
+            <div class="analytics-cpm-label">CPM</div>
             <div class="analytics-cpm-value">$${cpm.toFixed(2)}</div>
           </div>
           <div class="analytics-cpm-card">
-            <div class="analytics-cpm-label">RPM (Revenue per 1000 views)</div>
+            <div class="analytics-cpm-label">RPM</div>
             <div class="analytics-cpm-value">$${rpm.toFixed(2)}</div>
           </div>
         </div>
       </div>
-      
-      <!-- GRAPH -->
       <div class="analytics-section">
         <div class="analytics-section-title"><i class="fas fa-chart-line"></i> Last 7 Days</div>
         <canvas id="analyticsPageChart" style="width:100%;height:200px;"></canvas>
       </div>
-      
-      <!-- REGION STATS -->
       <div class="analytics-section">
         <div class="analytics-section-title"><i class="fas fa-globe"></i> Views by Region</div>
         ${regionData.map(r => `
@@ -680,13 +669,9 @@ async function openAnalyticsPage() {
           </div>
         `).join('')}
       </div>
-      
-      <!-- PER VIDEO ANALYTICS -->
       <div class="analytics-section">
         <div class="analytics-section-title"><i class="fas fa-video"></i> Video Performance</div>
-        ${allVideos.length === 0 ? `
-          <div style="text-align:center;padding:20px;color:#8aa9b8;">No videos yet</div>
-        ` : allVideos.map(v => `
+        ${allVideos.length === 0 ? `<div style="text-align:center;padding:20px;color:#8aa9b8;">No videos yet</div>` : allVideos.map(v => `
           <div class="analytics-video-row">
             <div class="analytics-video-thumb">
               ${v.thumbnail_url ? `<img src="${v.thumbnail_url}">` : '<i class="fas fa-play-circle"></i>'}
@@ -702,11 +687,9 @@ async function openAnalyticsPage() {
           </div>
         `).join('')}
       </div>
-      
     </div>
   `;
   
-  // Create page if not exists
   let analyticsPage = document.getElementById('analyticsPage');
   if (!analyticsPage) {
     analyticsPage = document.createElement('div');
@@ -716,13 +699,7 @@ async function openAnalyticsPage() {
   }
   analyticsPage.innerHTML = analyticsHTML;
   analyticsPage.classList.add('open');
-  
-  // Render chart
-  setTimeout(() => {
-    renderAnalyticsPageChart(totalViews, watchHours, subs);
-  }, 100);
-  
-  // Back button
+  setTimeout(() => { renderAnalyticsPageChart(totalViews, watchHours, subs); }, 100);
   document.getElementById('analyticsBackBtn')?.addEventListener('click', () => {
     analyticsPage.classList.remove('open');
   });
@@ -2383,8 +2360,8 @@ if (supportBackBtn) supportBackBtn.addEventListener('click', () => supportPage.c
 const BOT_RESPONSES = {
   'upload': '📹 To upload:\n1. Tap +\n2. Choose Upload\n3. Record/pick\n4. Fill details\n5. Publish',
   'go live': '🔴 To go live:\n1. Need 50+ subs\n2. Tap + → Go Live',
-  'monetization': '💰 Creator Rewards:\n• $1 per 500 subs\n• $0.50 per 1000 hrs\nMinimum: $10',
-  'creator rewards': '💰 Creator Rewards:\n• $1 per 500 subs\n• $0.50 per 1000 hrs',
+  'monetization': '💰 Creator Rewards:\n• $0.50 per 500 subs\n• $1.00 per 1000 hrs\n• $0.08 per 1000 views\nMinimum: $10',
+  'creator rewards': '💰 Creator Rewards:\n• $0.50 per 500 subs\n• $1.00 per 1000 hrs\n• $0.08 per 1000 views',
   'copyright': '© Copyright: 3 strikes = permanent ban.',
   'report': '🚩 Report: 3-dot menu → Report',
   'hello': 'Hi! 👋 How can I help?',
@@ -3796,6 +3773,7 @@ async function renderProfilePage() {
       `;
     }).join('');
   }
+  // 🆕 CHANNEL NAME NOW ON BANNER (GREEN COLOR)
   body.innerHTML = `
     <div class="profile-banner-new">
       ${bannerHTML}
@@ -3803,16 +3781,15 @@ async function renderProfilePage() {
         <div class="profile-channel-name-overlay">
           ${verifiedBadge} ${escapeHTML(ch.name)}
         </div>
+        <div class="profile-channel-handle-overlay">
+          ${escapeHTML(ch.username)} · ${escapeHTML(ch.category || '')}
+        </div>
       </div>
     </div>
     <div class="profile-header-row">
       <div class="profile-avatar-new">${avatarHTML}</div>
       <div class="profile-header-info">
-        <div class="profile-name-new">
-          ${verifiedBadge} ${escapeHTML(ch.name)}
-        </div>
-        <div class="profile-handle-new">${escapeHTML(ch.username)} · ${escapeHTML(ch.category || '')}</div>
-        <div class="profile-stats-new">
+        <div class="profile-stats-new" style="margin-top:0;">
           <span><strong>${ch.subscribers_count || 0}</strong> subscribers</span>
           <span><strong>${myVideos.length}</strong> videos</span>
         </div>
@@ -3866,7 +3843,6 @@ async function renderProfilePage() {
     }
     editChannelPage.classList.add('open');
   });
-  // 🆕 ANALYTICS BUTTON
   document.getElementById('openAnalyticsBtn')?.addEventListener('click', openAnalyticsPage);
   document.getElementById('openMonetizationBtn')?.addEventListener('click', async () => {
     monetizationPage.classList.add('open');
@@ -3982,7 +3958,6 @@ async function updateMonetizationUI() {
   const watchHours = Math.floor(totalWatchSeconds / 3600);
   const subs = state.channel.subscribers_count || 0;
   const revenue = calculateRevenue(subs, watchHours, totalViews);
-  
   const availableBalance = await getUserRevenue();
   
   if (totalRevenue) totalRevenue.textContent = availableBalance.toFixed(2);
