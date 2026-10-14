@@ -1,5 +1,5 @@
 /* ============================================================
-   FORTUBE v26 - FINAL (All Fixes + Region-Based Revenue + No Popup)
+   FORTUBE v27 - FINAL (All Shorts Fixes + Revenue Live Update + No Popup)
    ============================================================ */
 
 // ✅ SDK Check
@@ -29,17 +29,12 @@ const ADMIN_EMAILS = ["syedtechnical63@gmail.com"];
 const WITHDRAW_URL = "https://syedtechnical63-wq.github.io/withdrawal/";
 
 // ============================================================
-// 💰 REVENUE RATES (REGION BASED - CORRECTED)
-// ============================================================
-// Qualified views (UK/US/CA/AU): $5.00 per 1000 views  ✅
-// Normal views (rest of world):   $0.08 per 1000 views ✅
-// Subscribers:                    $2.00 per 1000 subs
-// Watch hours:                    $5.00 per 1000 hours
+// 💰 REVENUE RATES (REGION BASED)
 // ============================================================
 const REVENUE_PER_1000_SUBS = 2.00;
 const REVENUE_PER_1000_HOURS = 5.00;
 const REVENUE_PER_1000_VIEWS_NORMAL = 0.08;
-const REVENUE_PER_1000_VIEWS_QUALIFIED = 5.00;   // ✅ CHANGED from 1.00 to 5.00
+const REVENUE_PER_1000_VIEWS_QUALIFIED = 5.00;
 const MIN_WITHDRAWAL = 10.00;
 const MIN_WITHDRAW_AMOUNT = 10.00;
 const VERIFIED_THRESHOLD = 100000;
@@ -124,6 +119,8 @@ const state = {
   shortsVideos: [],
   totalWithdrawn: 0,
   userRegion: 'Global',
+  shortsViewTracker: new Set(), // ✅ FIX: unique view tracking
+  revenueInterval: null, // ✅ FIX: revenue live update interval
   preferences: {
     language: 'English',
     region: 'Global',
@@ -441,20 +438,14 @@ function isPremiumRegion(region) {
 }
 
 // ============================================================
-// 💰 REVENUE CALCULATION — REGION BASED (CORRECTED)
+// 💰 REVENUE CALCULATION
 // ============================================================
 function calculateRevenue(subscribers, watchHours, totalViews, region) {
-  // Subscribers: $2.00 per 1000 subs
   const subRevenue = (subscribers / 1000) * REVENUE_PER_1000_SUBS;
-  
-  // Watch Hours: $5.00 per 1000 hours
   const watchRevenue = (watchHours / 1000) * REVENUE_PER_1000_HOURS;
-  
-  // ✅ Views: $0.08 per 1000 (normal) OR $5.00 per 1000 (UK/US/CA/AU qualified)
   const isPremium = isPremiumRegion(region);
   const viewRate = isPremium ? REVENUE_PER_1000_VIEWS_QUALIFIED : REVENUE_PER_1000_VIEWS_NORMAL;
   const viewRevenue = (totalViews / 1000) * viewRate;
-  
   return {
     subRevenue: subRevenue,
     watchRevenue: watchRevenue,
@@ -519,6 +510,79 @@ async function getGrossRevenue() {
     const region = state.channel.region || 'Global';
     return calculateRevenue(subs, watchHours, videoViews + liveViews, region).total;
   } catch (e) { return 0; }
+}
+
+// ✅ FIX: Real-time revenue update display (no page reload needed)
+async function updateRevenueDisplay() {
+  if (!state.channel || !state.user) return 0;
+  try {
+    const revenue = await getUserRevenue();
+    
+    // Update all revenue elements
+    const totalRevenueEl = document.getElementById('totalRevenue');
+    if (totalRevenueEl) totalRevenueEl.textContent = revenue.toFixed(4);
+    
+    const currentRevEl = document.getElementById('currentRevenue');
+    if (currentRevEl) currentRevEl.textContent = revenue.toFixed(4);
+    
+    const availableBalEl = document.getElementById('availableBalance');
+    if (availableBalEl) availableBalEl.textContent = '$' + revenue.toFixed(4);
+    
+    const amountInput = document.getElementById('withdrawAmountInput');
+    if (amountInput) amountInput.max = revenue.toFixed(4);
+    
+    // Update analytics if open
+    if (document.getElementById('analyticsPage')?.classList.contains('open')) {
+      await refreshAnalyticsNumbers();
+    }
+    
+    return revenue;
+  } catch (e) {
+    console.error('updateRevenueDisplay error:', e);
+    return 0;
+  }
+}
+
+// ✅ FIX: Refresh analytics numbers only (without rebuilding page)
+async function refreshAnalyticsNumbers() {
+  if (!state.channel || !state.user) return;
+  try {
+    const { data: videos } = await supabaseClient.from('videos')
+      .select('views, watch_time_seconds').eq('owner_id', state.user.id);
+    const totalViews = (videos || []).reduce((s, v) => s + (v.views || 0), 0);
+    const totalWatch = (videos || []).reduce((s, v) => s + (v.watch_time_seconds || 0), 0);
+    const watchHours = Math.floor(totalWatch / 3600);
+    const subs = state.channel.subscribers_count || 0;
+    const grossRevenue = await getGrossRevenue();
+    
+    const viewsEl = document.querySelector('.analytics-stat-card:nth-child(1) .analytics-stat-value');
+    if (viewsEl) viewsEl.textContent = totalViews.toLocaleString();
+    const watchEl = document.querySelector('.analytics-stat-card:nth-child(2) .analytics-stat-value');
+    if (watchEl) watchEl.textContent = watchHours.toLocaleString();
+    const subsEl = document.querySelector('.analytics-stat-card:nth-child(3) .analytics-stat-value');
+    if (subsEl) subsEl.textContent = subs.toLocaleString();
+    const revEl = document.querySelector('.analytics-stat-card:nth-child(4) .analytics-stat-value');
+    if (revEl) revEl.textContent = '$' + grossRevenue.toFixed(4);
+  } catch (e) {}
+}
+
+// ✅ FIX: Start live revenue updates (every 15 seconds)
+function startRevenueLiveUpdate() {
+  if (state.revenueInterval) clearInterval(state.revenueInterval);
+  state.revenueInterval = setInterval(async () => {
+    if (monetizationPage?.classList.contains('open') || 
+        monetizationRevenuePage?.style.display === 'block') {
+      await updateRevenueDisplay();
+    }
+  }, 15000);
+}
+
+// ✅ FIX: Stop live revenue updates
+function stopRevenueLiveUpdate() {
+  if (state.revenueInterval) {
+    clearInterval(state.revenueInterval);
+    state.revenueInterval = null;
+  }
 }
 
 // ============================================================
@@ -1205,6 +1269,8 @@ if (logoutBtn) {
     state.allChannels = [];
     state.notifications = [];
     state.subscriptions = [];
+    state.shortsViewTracker.clear(); // ✅ FIX
+    stopRevenueLiveUpdate(); // ✅ FIX
     try {
       localStorage.removeItem('fortube_page_state');
       localStorage.removeItem('fortube_last_filter');
@@ -1357,16 +1423,19 @@ function renderFeed(filterText = '', categoryFilter = null) {
 }
 
 // ============================================================
-// 🎵 SHORTS FEED
+// 🎵 SHORTS FEED - FULLY FIXED
 // ============================================================
 function renderShortsFeed() {
   if (!shortsFeed) return;
   if (feed) feed.style.display = 'none';
   shortsFeed.style.display = 'block';
+  shortsFeed.innerHTML = ''; // ✅ FIX: Clear first to avoid duplicate IDs
+  
   const searchQuery = searchInput ? searchInput.value.trim() : '';
   let shortsVideos = state.allVideos.filter(v => v.type === 'short');
   if (searchQuery) shortsVideos = shortsVideos.filter(v => matchVideoSearch(v, searchQuery));
   state.shortsVideos = shortsVideos;
+  
   if (shortsVideos.length === 0) {
     shortsFeed.innerHTML = `
       <div class="shorts-empty">
@@ -1377,6 +1446,7 @@ function renderShortsFeed() {
     `;
     return;
   }
+  
   let html = '<div class="shorts-scroll-container" id="shortsScrollContainer">';
   shortsVideos.forEach((vid, idx) => {
     const ch = state.allChannels.find(c => c.username === vid.channel_username) || {};
@@ -1385,13 +1455,17 @@ function renderShortsFeed() {
       ? `<img src="${ch.avatar_url}" style="width:100%;height:100%;object-fit:cover;">`
       : (ch.avatar_emoji || '👤');
     const verifiedBadge = getVerifiedBadgeHTML(ch);
+    
+    // ✅ FIX: muted attribute + onerror fallback + loop attribute
+    const videoHTML = vid.video_url 
+      ? `<video class="short-video" src="${vid.video_url}" loop muted playsinline preload="auto" poster="${vid.thumbnail_url || ''}" webkit-playsinline x5-playsinline x5-video-player-type="h5" x5-video-player-fullscreen="false" disablepictureinpicture onerror="this.style.display='none';this.nextElementSibling.style.display='flex';"></video>
+         <div class="short-video-placeholder" style="display:none;"><i class="fas fa-play-circle"></i></div>`
+      : `<div class="short-video-placeholder"><i class="fas fa-play-circle"></i></div>`;
+    
     html += `
       <div class="short-item" data-short-id="${vid.id}" data-index="${idx}">
         <div class="short-video-wrapper">
-          ${vid.video_url 
-            ? `<video class="short-video" src="${vid.video_url}" loop playsinline preload="auto" poster="${vid.thumbnail_url || ''}" webkit-playsinline x5-playsinline x5-video-player-type="h5" x5-video-player-fullscreen="false" disablepictureinpicture></video>`
-            : `<div class="short-video-placeholder"><i class="fas fa-play-circle"></i></div>`
-          }
+          ${videoHTML}
           <div class="short-play-overlay" data-play="${vid.id}"><i class="fas fa-play"></i></div>
         </div>
         <div class="short-actions">
@@ -1409,18 +1483,20 @@ function renderShortsFeed() {
           </div>
           <div class="short-title" data-title="${vid.id}">${escapeHTML(vid.title)}</div>
           <div class="short-meta">
-            <span><i class="fas fa-eye"></i> ${formatViews(vid.views || 0)} views</span>
+            <span data-views="${vid.id}"><i class="fas fa-eye"></i> ${formatViews(vid.views || 0)} views</span>
             <span><i class="fas fa-clock"></i> ${formatDate(vid.created_at)}</span>
           </div>
         </div>
-        <div class="short-progress-bar"><div class="short-progress-fill"></div></div>
+        <div class="short-progress-bar"><div class="short-progress-fill" data-progress="${vid.id}"></div></div>
       </div>
     `;
   });
   html += '</div>';
   shortsFeed.innerHTML = html;
+  
   setupShortsAutoPlay();
   
+  // ✅ FIX: Like button
   shortsFeed.querySelectorAll('[data-like]').forEach(btn => {
     btn.addEventListener('click', async (e) => {
       e.stopPropagation();
@@ -1435,6 +1511,8 @@ function renderShortsFeed() {
       showToast('❤️ Liked');
     });
   });
+  
+  // ✅ FIX: Comment button
   shortsFeed.querySelectorAll('[data-comment]').forEach(btn => {
     btn.addEventListener('click', (e) => {
       e.stopPropagation();
@@ -1442,16 +1520,31 @@ function renderShortsFeed() {
       if (vid) openWatchPage(vid);
     });
   });
+  
+  // ✅ FIX: Share button
   shortsFeed.querySelectorAll('[data-share]').forEach(btn => {
     btn.addEventListener('click', (e) => {
       e.stopPropagation();
       const vid = state.allVideos.find(v => v.id === btn.dataset.share);
-      if (vid) navigator.clipboard.writeText(vid.video_url || window.location.href).then(() => showToast('🔗 Link copied'));
+      if (vid) {
+        const url = vid.video_url || window.location.href;
+        if (navigator.share) {
+          navigator.share({ title: vid.title, url: url }).catch(() => {
+            navigator.clipboard.writeText(url).then(() => showToast('🔗 Link copied'));
+          });
+        } else {
+          navigator.clipboard.writeText(url).then(() => showToast('🔗 Link copied'));
+        }
+      }
     });
   });
+  
+  // ✅ FIX: Channel click
   shortsFeed.querySelectorAll('[data-channel]').forEach(el => {
     el.addEventListener('click', (e) => { e.stopPropagation(); openChannelView(el.dataset.channel); });
   });
+  
+  // ✅ FIX: Title click
   shortsFeed.querySelectorAll('[data-title]').forEach(el => {
     el.addEventListener('click', (e) => {
       e.stopPropagation();
@@ -1463,6 +1556,8 @@ function renderShortsFeed() {
         'fa-info-circle');
     });
   });
+  
+  // ✅ FIX: Menu button
   shortsFeed.querySelectorAll('[data-menu]').forEach(btn => {
     btn.addEventListener('click', (e) => {
       e.stopPropagation();
@@ -1470,68 +1565,133 @@ function renderShortsFeed() {
       if (vid) openVideoActions(vid);
     });
   });
+  
+  // ✅ FIX: Play overlay
   shortsFeed.querySelectorAll('.short-play-overlay').forEach(overlay => {
     overlay.addEventListener('click', (e) => {
       e.stopPropagation();
-      const video = overlay.parentElement.querySelector('video');
+      const wrapper = overlay.parentElement;
+      const video = wrapper.querySelector('video');
       if (video) {
-        if (video.paused) { video.play(); overlay.style.opacity = '0'; }
+        if (video.paused) { 
+          video.muted = false; // ✅ Unmute on user interaction
+          video.play().then(() => overlay.style.opacity = '0').catch(() => {}); 
+        }
         else { video.pause(); overlay.style.opacity = '1'; }
       }
     });
   });
+  
+  // ✅ FIX: Setup watch tracking (unique views)
   setupShortWatchTracking();
 }
 
+// ✅ FIX: Setup watch tracking with unique view check + proper reset
 function setupShortWatchTracking() {
   const container = document.getElementById('shortsScrollContainer');
   if (!container) return;
+  
+  // ✅ FIX: Single IntersectionObserver for both play AND tracking
   const observer = new IntersectionObserver((entries) => {
     entries.forEach(entry => {
       const shortItem = entry.target;
       const video = shortItem.querySelector('.short-video');
       if (!video) return;
+      
       if (entry.intersectionRatio > 0.75) {
+        // ✅ Start tracking if not already
         if (!video._watchStarted) {
           video._watchStarted = Date.now();
           video._shortId = shortItem.dataset.shortId;
         }
-      } else {
+      } else if (entry.intersectionRatio < 0.4) {
+        // ✅ Stop tracking and record view
         if (video._watchStarted && video._shortId) {
           const elapsed = Math.floor((Date.now() - video._watchStarted) / 1000);
-          if (elapsed > 2 && state.user) {
+          if (elapsed > 2 && state.user && video._shortId) {
             const vid = state.allVideos.find(v => v.id === video._shortId);
+            // ✅ FIX: Check if user is not the owner AND unique view
             if (vid && vid.owner_id !== state.user.id) {
-              addShortView(video._shortId, elapsed);
+              const viewKey = `${state.user.id}_${video._shortId}`;
+              // ✅ FIX: Only count view once per session
+              if (!state.shortsViewTracker.has(viewKey)) {
+                state.shortsViewTracker.add(viewKey);
+                addShortView(video._shortId, elapsed);
+              } else {
+                // Still add watch time even if view already counted
+                addShortWatchTimeOnly(video._shortId, elapsed);
+              }
             }
           }
+          // ✅ FIX: Reset both _watchStarted AND _shortId
           video._watchStarted = null;
+          video._shortId = null;
         }
       }
     });
-  }, { root: container, threshold: [0.4, 0.75], rootMargin: '0px' });
+  }, { 
+    root: container, 
+    threshold: [0.4, 0.75], 
+    rootMargin: '-10% 0px -10% 0px' // ✅ FIX: Better margin
+  });
+  
   container.querySelectorAll('.short-item').forEach(item => observer.observe(item));
 }
 
+// ✅ FIX: Add short view (unique) + watch time
 async function addShortView(videoId, seconds) {
   try {
     const vid = state.allVideos.find(v => v.id === videoId);
     if (!vid) return;
     const newViews = (vid.views || 0) + 1;
     const newWatch = (vid.watch_time_seconds || 0) + seconds;
+    
     await supabaseClient.from('videos').update({
       views: newViews, watch_time_seconds: newWatch
     }).eq('id', videoId);
+    
+    // ✅ FIX: Update local state
     vid.views = newViews;
     vid.watch_time_seconds = newWatch;
-    if (monetizationPage?.classList.contains('open')) updateRevenueDisplay();
+    
+    // ✅ FIX: Update DOM views display
+    const viewsEl = document.querySelector(`[data-views="${videoId}"]`);
+    if (viewsEl) {
+      viewsEl.innerHTML = `<i class="fas fa-eye"></i> ${formatViews(newViews)} views`;
+    }
+    
+    // ✅ FIX: Live revenue update
+    if (monetizationPage?.classList.contains('open') || 
+        monetizationRevenuePage?.style.display === 'block') {
+      updateRevenueDisplay();
+    }
+  } catch (e) { console.error('addShortView error:', e); }
+}
+
+// ✅ FIX: Add only watch time (no view count)
+async function addShortWatchTimeOnly(videoId, seconds) {
+  try {
+    const vid = state.allVideos.find(v => v.id === videoId);
+    if (!vid) return;
+    const newWatch = (vid.watch_time_seconds || 0) + seconds;
+    await supabaseClient.from('videos').update({
+      watch_time_seconds: newWatch
+    }).eq('id', videoId);
+    vid.watch_time_seconds = newWatch;
+    
+    if (monetizationPage?.classList.contains('open') || 
+        monetizationRevenuePage?.style.display === 'block') {
+      updateRevenueDisplay();
+    }
   } catch (e) {}
 }
 
+// ✅ FIX: Shorts autoplay - muted first, unmute on interaction
 function setupShortsAutoPlay() {
   const container = document.getElementById('shortsScrollContainer');
   if (!container) return;
   const videos = container.querySelectorAll('.short-video');
+  
   videos.forEach(v => {
     v.loop = true;
     v.setAttribute('loop', '');
@@ -1542,9 +1702,13 @@ function setupShortsAutoPlay() {
     v.setAttribute('x5-video-player-type', 'h5');
     v.setAttribute('x5-video-player-fullscreen', 'false');
     v.setAttribute('disablepictureinpicture', '');
-    v.muted = false;
     v.preload = 'auto';
+    // ✅ FIX: muted initially for autoplay
+    if (!v._userUnmuted) {
+      v.muted = true;
+    }
   });
+  
   const pauseOthers = (currentVideo) => {
     videos.forEach(v => {
       if (v !== currentVideo && !v.paused) {
@@ -1554,47 +1718,76 @@ function setupShortsAutoPlay() {
       }
     });
   };
+  
   const observer = new IntersectionObserver((entries) => {
     entries.forEach(entry => {
       const video = entry.target;
       const overlay = video.parentElement.querySelector('.short-play-overlay');
-      if (entry.isIntersecting && entry.intersectionRatio > 0.75) {
+      
+      if (entry.isIntersecting && entry.intersectionRatio > 0.6) {
         pauseOthers(video);
         if (video.paused) {
           video.play()
             .then(() => { if (overlay) overlay.style.opacity = '0'; })
             .catch(() => { if (overlay) overlay.style.opacity = '1'; });
         }
-      } else if (entry.intersectionRatio < 0.4) {
+      } else if (entry.intersectionRatio < 0.3) {
         if (!video.paused) {
           video.pause();
           if (overlay) overlay.style.opacity = '1';
         }
       }
     });
-  }, { root: container, threshold: [0, 0.4, 0.75, 1.0], rootMargin: '0px' });
+  }, { 
+    root: container, 
+    threshold: [0, 0.3, 0.6, 1.0], 
+    rootMargin: '-10% 0px -10% 0px' // ✅ FIX
+  });
+  
   videos.forEach(v => observer.observe(v));
-  const progressBars = container.querySelectorAll('.short-progress-fill');
-  videos.forEach((video, idx) => {
+  
+  // ✅ FIX: Progress bar using closest
+  videos.forEach((video) => {
     video.addEventListener('timeupdate', () => {
-      if (progressBars[idx] && video.duration && isFinite(video.duration)) {
-        progressBars[idx].style.width = (video.currentTime / video.duration) * 100 + '%';
+      const progressEl = video.closest('.short-item')?.querySelector('.short-progress-fill');
+      if (progressEl && video.duration && isFinite(video.duration)) {
+        progressEl.style.width = (video.currentTime / video.duration) * 100 + '%';
       }
     });
-    video.addEventListener('ended', (e) => {
-      e.preventDefault(); e.stopPropagation();
-      try { video.currentTime = 0; video.play().catch(() => {}); } catch (err) {}
-    });
+    // ✅ FIX: No 'ended' handler since loop=true handles it
     video.addEventListener('webkitbeginfullscreen', (e) => e.preventDefault());
     video.addEventListener('enterpictureinpicture', (e) => e.preventDefault());
     video.addEventListener('stalled', () => {
-      setTimeout(() => { if (video.paused && video.offsetParent !== null) video.play().catch(() => {}); }, 500);
+      setTimeout(() => { 
+        if (video.paused && video.offsetParent !== null) video.play().catch(() => {}); 
+      }, 500);
     });
   });
+  
+  // ✅ FIX: Auto-play first video (muted)
   setTimeout(() => {
     const first = container.querySelector('.short-video');
-    if (first && first.paused) first.play().catch(() => {});
+    if (first && first.paused) {
+      first.play().catch(() => {
+        const o = first.parentElement.querySelector('.short-play-overlay');
+        if (o) o.style.opacity = '1';
+      });
+    }
   }, 300);
+  
+  // ✅ FIX: Unmute on user interaction
+  const unmuteOnInteraction = () => {
+    videos.forEach(v => { 
+      if (v._userUnmuted) v.muted = false; 
+    });
+  };
+  document.addEventListener('touchstart', () => {
+    const visible = Array.from(videos).find(v => !v.paused);
+    if (visible && !visible._userUnmuted) {
+      visible._userUnmuted = true;
+      visible.muted = false;
+    }
+  }, { once: false, passive: true });
 }
 
 // ============================================================
@@ -1750,7 +1943,14 @@ async function openWatchPage(vid) {
     showToast('👍 Liked');
   });
   document.getElementById('shareBtn')?.addEventListener('click', () => {
-    navigator.clipboard.writeText(vid.video_url || window.location.href).then(() => showToast('🔗 Link copied'));
+    const url = vid.video_url || window.location.href;
+    if (navigator.share) {
+      navigator.share({ title: vid.title, url: url }).catch(() => {
+        navigator.clipboard.writeText(url).then(() => showToast('🔗 Link copied'));
+      });
+    } else {
+      navigator.clipboard.writeText(url).then(() => showToast('🔗 Link copied'));
+    }
   });
   document.getElementById('saveBtn')?.addEventListener('click', () => showToast('📌 Saved'));
   document.getElementById('watchReportBtn')?.addEventListener('click', () => {
@@ -1858,7 +2058,10 @@ async function addWatchTime(videoId, seconds) {
       if (!error) {
         const localVid = state.allVideos.find(v => v.id === videoId);
         if (localVid) localVid.watch_time_seconds = newWatchTime;
-        if (monetizationPage?.classList.contains('open')) updateRevenueDisplay();
+        if (monetizationPage?.classList.contains('open') || 
+            monetizationRevenuePage?.style.display === 'block') {
+          updateRevenueDisplay();
+        }
       }
     }
   } catch (e) {}
@@ -2597,7 +2800,7 @@ if (plusLiveBtn) {
   });
 }
 
-// ==================== LIVE STREAMING (FIXED) ====================
+// ==================== LIVE STREAMING ====================
 async function openLiveSetup() {
   if (!state.channel) { showToast('Create channel first'); openChannelSetup(); return; }
   if (typeof AgoraRTC === 'undefined') {
@@ -2665,10 +2868,7 @@ async function startLiveStream() {
   if (!previewStream) { showToast('Camera not ready'); return; }
   liveStartBtn.disabled = true;
   liveStartBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Starting...';
-  
-  // ✅ Save stream reference BEFORE closing setup
   const streamRef = previewStream;
-  
   try {
     const channelName = generateLiveChannelName();
     const videoId = 'live_' + Date.now();
@@ -2693,22 +2893,16 @@ async function startLiveStream() {
     });
     state.activeLiveStream = liveData;
     state.liveStartTime = Date.now();
-    
-    // ✅ Detach preview but keep stream alive
     if (livePreviewVideo) {
       try { livePreviewVideo.srcObject = null; } catch(e){}
     }
     liveSetupModal.classList.remove('open');
-    
     liveStreamPage.classList.add('open');
     liveStreamTitle.textContent = title;
     liveStreamChannel.textContent = state.channel.name;
     await new Promise(r => setTimeout(r, 500));
     await setupAgoraBroadcaster(channelName, streamRef);
-    
-    // Keep reference for later cleanup
     previewStream = streamRef;
-    
     state.liveDurationInterval = setInterval(() => {
       const elapsed = Math.floor((Date.now() - state.liveStartTime) / 1000);
       liveStreamDuration.textContent = formatDuration(elapsed);
@@ -3965,6 +4159,7 @@ async function renderProfilePage() {
   document.getElementById('openMonetizationBtn')?.addEventListener('click', async () => {
     monetizationPage.classList.add('open');
     await refreshMonetizationPage();
+    startRevenueLiveUpdate(); // ✅ FIX: Start live updates
   });
   body.querySelectorAll('[data-pvid]').forEach(card => {
     card.addEventListener('click', (e) => {
@@ -4051,6 +4246,7 @@ async function refreshMonetizationPage() {
     monetizationRevenuePage.style.display = 'block';
     await updateMonetizationUI();
     await updateRevenueDisplay();
+    startRevenueLiveUpdate(); // ✅ FIX: Start live updates
   } else {
     eligibilityCard.style.display = 'block';
     monetizationApplyPage.style.display = 'none';
@@ -4138,20 +4334,8 @@ function updateAnalyticsDisplay(views, watchHours, subs, revenue) {
 }
 
 // ============================================================
-// 💰 WITHDRAW (FIXED - NO POPUP CONTINUE)
+// 💰 WITHDRAW
 // ============================================================
-async function updateRevenueDisplay() {
-  if (!state.channel) return 0;
-  const revenue = await getUserRevenue();
-  const totalRevenueEl = document.getElementById('totalRevenue');
-  if (totalRevenueEl) totalRevenueEl.textContent = revenue.toFixed(4);
-  const currentRevEl = document.getElementById('currentRevenue');
-  if (currentRevEl) currentRevEl.textContent = revenue.toFixed(4);
-  const amountInput = document.getElementById('withdrawAmountInput');
-  if (amountInput) amountInput.max = revenue.toFixed(4);
-  return revenue;
-}
-
 function showWithdrawError(msg) {
   const errorEl = document.getElementById('withdrawError');
   if (errorEl) {
@@ -4202,10 +4386,9 @@ async function processWithdraw() {
       channel_id: state.channel.id, channel_name: state.channel.name,
       username: state.channel.username, amount: amount.toFixed(2),
       remaining_balance: newBalance.toFixed(4), currency: 'USD',
-      auto: '1'  // ✅ Signal to auto-continue (no popup)
+      auto: '1'
     });
     
-    // ✅ DIRECT REDIRECT - No popup, no "Continue" button
     const url = `${WITHDRAW_URL}?${params.toString()}`;
     showToast('🔗 Redirecting to withdrawal page...');
     setTimeout(() => {
@@ -4234,6 +4417,7 @@ document.addEventListener('keydown', (e) => {
 
 if (monetizationBackBtn) monetizationBackBtn.addEventListener('click', () => {
   monetizationPage.classList.remove('open');
+  stopRevenueLiveUpdate(); // ✅ FIX: Stop live updates
   saveCurrentPageState();
 });
 
@@ -4251,6 +4435,7 @@ if (verifyBtn) {
       monetizationRevenuePage.style.display = 'block';
       await updateMonetizationUI();
       await updateRevenueDisplay();
+      startRevenueLiveUpdate(); // ✅ FIX
     } else {
       eligibilityCard.style.display = 'none';
       monetizationApplyPage.style.display = 'block';
@@ -4288,6 +4473,7 @@ if (submitMonetizationApplication) {
           monetizationRevenuePage.style.display = 'block';
           updateMonetizationUI();
           updateRevenueDisplay();
+          startRevenueLiveUpdate(); // ✅ FIX
         }, 1500);
       } else {
         applicationStatus.textContent = '✅ Application submitted!';
@@ -4461,15 +4647,26 @@ if (alertCloseBtn) alertCloseBtn.addEventListener('click', () => alertPopup.clas
 // ==================== INIT ====================
 checkSession();
 
-window.addEventListener('beforeunload', async () => {
-  saveCurrentPageState();
-  if (state.currentWatchingVideoId) await saveWatchTimeNow(state.currentWatchingVideoId);
-  if (state.agoraClient) { try { state.agoraClient.leave(); } catch (e) {} }
-});
-
+// ✅ FIX: Auto-refresh feed every 30 seconds
 setInterval(() => {
   if (state.loggedIn && watchPage && !watchPage.classList.contains('open') && !liveWatchPage.classList.contains('open')) {
     loadFeedFromSupabase();
     loadNotifications();
   }
 }, 30000);
+
+// ✅ FIX: Live revenue update every 10 seconds if monetization page is open
+setInterval(() => {
+  if (state.loggedIn && state.channel && 
+      (monetizationPage?.classList.contains('open') || 
+       monetizationRevenuePage?.style.display === 'block')) {
+    updateRevenueDisplay();
+  }
+}, 10000);
+
+window.addEventListener('beforeunload', async () => {
+  saveCurrentPageState();
+  if (state.currentWatchingVideoId) await saveWatchTimeNow(state.currentWatchingVideoId);
+  if (state.agoraClient) { try { state.agoraClient.leave(); } catch (e) {} }
+  stopRevenueLiveUpdate();
+});
