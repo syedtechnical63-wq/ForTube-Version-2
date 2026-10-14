@@ -1,6 +1,7 @@
 /* ============================================================
-   FORTUBE v21 - COMPLETE STYLESHEET
-   All errors fixed + Channel name on banner (green)
+   FORTUBE v23 - COMPLETE REFRESHED STYLESHEET
+   Desktop: 3-4 column grid | Mobile: same as before
+   All issues fixed + Dark mode complete
    ============================================================ */
 
 * {
@@ -183,6 +184,8 @@ body {
     padding: 14px 14px 10px;
     padding-top: calc(14px + env(safe-area-inset-top));
     background: #f5f9ff;
+    flex-shrink: 0;
+    z-index: 10;
 }
 
 .header-left {
@@ -292,6 +295,8 @@ body {
 .search-section {
     padding: 2px 14px 8px;
     background: #f5f9ff;
+    flex-shrink: 0;
+    z-index: 9;
 }
 
 .search-wrapper {
@@ -395,12 +400,13 @@ body {
     border-color: #2e9b72;
 }
 
-/* ============ FEED ============ */
+/* ============ FEED (MOBILE - SINGLE COLUMN) ============ */
 .feed {
     flex: 1;
     overflow-y: auto;
     padding: 6px 0 10px;
     background: #f5f9ff;
+    min-height: 0;
 }
 
 .feed-title {
@@ -444,8 +450,13 @@ body {
     overflow: hidden;
     background: #000;
     position: relative;
-    height: calc(100dvh - 200px);
-    min-height: 400px;
+    min-height: 0;
+    display: none;
+}
+
+.shorts-feed.active,
+.shorts-feed[style*="display: block"] {
+    display: block;
 }
 
 .shorts-scroll-container {
@@ -456,7 +467,6 @@ body {
     scrollbar-width: none;
     -ms-overflow-style: none;
     -webkit-overflow-scrolling: touch;
-    overscroll-behavior-y: contain;
     overscroll-behavior: contain;
 }
 
@@ -852,6 +862,8 @@ body {
     border-top: 2px solid #cbe3f0;
     box-shadow: 0 -6px 18px rgba(0, 60, 80, 0.06);
     position: relative;
+    flex-shrink: 0;
+    z-index: 10;
 }
 
 .nav-item {
@@ -899,6 +911,7 @@ body {
     margin-top: -22px;
     border: 3px solid #ffffff;
     flex-shrink: 0;
+    transition: 0.2s;
 }
 
 .nav-plus:hover {
@@ -1019,6 +1032,7 @@ body {
     padding-top: calc(20px + env(safe-area-inset-top));
     background: linear-gradient(135deg, #156b3c, #1c7aa3);
     color: white;
+    flex-shrink: 0;
 }
 
 .back-btn {
@@ -1034,6 +1048,7 @@ body {
     font-size: 1rem;
     cursor: pointer;
     flex-shrink: 0;
+    transition: 0.2s;
 }
 
 .back-btn:hover { background: rgba(255, 255, 255, 0.35); }
@@ -1044,6 +1059,7 @@ body {
     flex: 1;
     overflow-y: auto;
     padding: 0;
+    min-height: 0;
 }
 
 /* ============ PROFILE PAGE ============ */
@@ -1116,7 +1132,7 @@ body {
 .profile-name-new {
     font-size: 1.15rem;
     font-weight: 800;
-    color: #F6C010;             
+    color: #F6C010;
     display: flex;
     align-items: center;
     gap: 6px;
@@ -1344,14 +1360,6 @@ body {
 
 .profile-no-channel { padding-bottom: 30px; }
 
-@media (min-width: 768px) {
-    .profile-videos-grid {
-        grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
-        padding: 0 20px 20px;
-    }
-    .profile-banner-new { height: 180px; }
-}
-
 /* ============ MONETIZATION PAGE ============ */
 .monetization-page {
     position: absolute;
@@ -1371,6 +1379,7 @@ body {
     flex: 1;
     overflow-y: auto;
     padding: 20px 18px 30px;
+    min-height: 0;
 }
 
 .criteria-card {
@@ -1631,6 +1640,7 @@ body {
     padding-top: calc(14px + env(safe-area-inset-top));
     background: #0b2d3b;
     color: white;
+    flex-shrink: 0;
 }
 
 .watch-header .back-btn { background: rgba(255, 255, 255, 0.15); }
@@ -1644,7 +1654,7 @@ body {
     text-overflow: ellipsis;
 }
 
-.watch-body { flex: 1; overflow-y: auto; }
+.watch-body { flex: 1; overflow-y: auto; min-height: 0; }
 
 .watch-video-area {
     width: 100%;
@@ -2003,24 +2013,6 @@ body {
     margin-top: 3px;
 }
 
-.comment-delete-btn {
-    background: none;
-    border: none;
-    color: #d97706;
-    font-size: 0.68rem;
-    font-weight: 700;
-    cursor: pointer;
-    padding: 2px 6px;
-    border-radius: 6px;
-    margin-left: 6px;
-    transition: 0.2s;
-}
-
-.comment-delete-btn:hover {
-    background: #fee2e2;
-    color: #b91c1c;
-}
-
 .no-comments {
     text-align: center;
     font-size: 0.8rem;
@@ -2360,6 +2352,7 @@ body {
     padding-top: calc(16px + env(safe-area-inset-top));
     background: linear-gradient(135deg, #156b3c, #1c7aa3);
     color: white;
+    flex-shrink: 0;
 }
 
 .metadata-header h3 {
@@ -2372,6 +2365,7 @@ body {
     flex: 1;
     overflow-y: auto;
     padding: 18px 16px 30px;
+    min-height: 0;
 }
 
 .thumbnail-picker {
@@ -2558,6 +2552,7 @@ body {
     border-top: 2px solid #cbe3f0;
     display: flex;
     gap: 10px;
+    flex-shrink: 0;
 }
 
 .publish-bar .btn { flex: 1; padding: 15px; font-size: 0.9rem; }
@@ -2712,6 +2707,7 @@ body {
     padding-top: calc(16px + env(safe-area-inset-top));
     background: linear-gradient(135deg, #156b3c, #1c7aa3);
     color: white;
+    flex-shrink: 0;
 }
 
 .channel-setup-header h3 {
@@ -2724,6 +2720,7 @@ body {
     flex: 1;
     overflow-y: auto;
     padding: 18px 16px 30px;
+    min-height: 0;
 }
 
 .setup-banner {
@@ -2827,6 +2824,7 @@ body {
     padding-top: calc(14px + env(safe-area-inset-top));
     background: #0b2d3b;
     color: white;
+    flex-shrink: 0;
 }
 
 .channel-view-header h3 {
@@ -2835,7 +2833,7 @@ body {
     flex: 1;
 }
 
-.channel-view-body { flex: 1; overflow-y: auto; }
+.channel-view-body { flex: 1; overflow-y: auto; min-height: 0; }
 
 .channel-banner-display {
     width: 100%;
@@ -2952,6 +2950,7 @@ body {
     flex: 1;
     overflow-y: auto;
     padding: 18px 16px 30px;
+    min-height: 0;
 }
 
 .settings-section {
@@ -3079,6 +3078,7 @@ body {
     flex: 1;
     overflow-y: auto;
     padding: 18px 16px 30px;
+    min-height: 0;
 }
 
 .subs-channels-row {
@@ -3157,6 +3157,7 @@ body {
     flex: 1;
     overflow-y: auto;
     padding: 18px 16px 30px;
+    min-height: 0;
 }
 
 .playlist-card {
@@ -3217,6 +3218,7 @@ body {
     flex: 1;
     overflow-y: auto;
     padding: 18px 16px 30px;
+    min-height: 0;
 }
 
 .notif-item {
@@ -3408,7 +3410,7 @@ body {
 
 .terms-page.open { transform: translateX(0); }
 
-.terms-body { flex: 1; overflow-y: auto; padding: 20px 18px 40px; }
+.terms-body { flex: 1; overflow-y: auto; padding: 20px 18px 40px; min-height: 0; }
 
 .terms-section {
     background: #fff;
@@ -3463,6 +3465,7 @@ body {
     overflow-y: auto;
     padding: 18px 14px 20px;
     background: #eef5f9;
+    min-height: 0;
 }
 
 .support-message { display: flex; gap: 8px; margin-bottom: 16px; }
@@ -3536,6 +3539,7 @@ body {
     padding-bottom: calc(12px + env(safe-area-inset-bottom));
     background: #fff;
     border-top: 2px solid #cbe3f0;
+    flex-shrink: 0;
 }
 
 .support-input-bar input {
@@ -3792,7 +3796,7 @@ body {
 
 .admin-panel-page.open { transform: translateX(0); }
 
-.admin-panel-body { flex: 1; overflow-y: auto; padding: 16px; }
+.admin-panel-body { flex: 1; overflow-y: auto; padding: 16px; min-height: 0; }
 
 .admin-tabs {
     display: flex;
@@ -4015,6 +4019,7 @@ body {
     padding-top: calc(16px + env(safe-area-inset-top));
     background: linear-gradient(135deg, #ff3b3b, #ff6b00);
     color: white;
+    flex-shrink: 0;
 }
 
 .live-setup-header h3 { font-size: 1.05rem; font-weight: 800; flex: 1; }
@@ -4024,6 +4029,7 @@ body {
     flex: 1;
     overflow-y: auto;
     padding: 18px 16px 30px;
+    min-height: 0;
 }
 
 .live-preview-box {
@@ -4108,6 +4114,7 @@ body {
     background: linear-gradient(135deg, rgba(255,59,59,0.95), rgba(255,107,0,0.95));
     color: white;
     gap: 10px;
+    flex-shrink: 0;
 }
 
 .live-badge-animated {
@@ -4154,6 +4161,7 @@ body {
     display: flex;
     flex-direction: column;
     background: #000;
+    min-height: 0;
 }
 
 .live-broadcast-container {
@@ -4212,7 +4220,7 @@ body {
     transform: translateX(0);
 }
 
-.live-watch-body { flex: 1; overflow-y: auto; }
+.live-watch-body { flex: 1; overflow-y: auto; min-height: 0; }
 
 .live-watch-video-area {
     width: 100%;
@@ -4271,45 +4279,6 @@ body {
     gap: 5px;
 }
 
-/* ============ LARGE SCREEN ============ */
-@media (min-width: 768px) {
-    .feed {
-        padding-left: 20px;
-        padding-right: 20px;
-        display: grid;
-        grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
-        gap: 16px;
-        padding: 16px 20px;
-        align-content: start;
-    }
-    .feed-title { grid-column: 1 / -1; }
-    .empty-feed { grid-column: 1 / -1; }
-    .video-card { margin-left: 0; margin-right: 0; margin-bottom: 0; }
-    .live-setup-inner { max-width: 700px; }
-    .live-watch-video-area { max-height: 70vh; }
-    .short-item { max-width: 500px; margin: 0 auto; }
-    .related-thumb { width: 160px; height: 90px; }
-}
-
-@media (min-width: 1200px) {
-    .feed {
-        grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
-        gap: 20px;
-        padding: 20px 30px;
-    }
-}
-
-#forgotPasswordLink { transition: 0.2s; }
-#forgotPasswordLink:hover { color: #0a6b3c !important; }
-
-#ageConfirm {
-    width: 16px !important;
-    height: 16px !important;
-    margin: 0 !important;
-    cursor: pointer;
-    accent-color: #1e8b4b;
-}
-
 /* ============================================================
    🆕 CHANNEL INFO ON BANNER (GREEN COLOR)
    ============================================================ */
@@ -4334,7 +4303,7 @@ body {
 .profile-channel-name-overlay {
   font-size: 1.15rem;
   font-weight: 800;
-  color: #1e8b4b;                /* ⭐ GREEN */
+  color: #1e8b4b;
   text-shadow: 0 2px 8px rgba(0,0,0,0.6);
   display: flex;
   align-items: center;
@@ -4343,7 +4312,7 @@ body {
 
 .profile-channel-handle-overlay {
   font-size: 0.72rem;
-  color: #1e8b4b;                /* ⭐ GREEN */
+  color: #1e8b4b;
   font-weight: 600;
   text-shadow: 0 2px 8px rgba(0,0,0,0.6);
 }
@@ -4373,6 +4342,7 @@ body {
   padding-top: calc(14px + env(safe-area-inset-top));
   background: linear-gradient(135deg, #156b3c, #1c7aa3);
   color: white;
+  flex-shrink: 0;
 }
 
 .analytics-page-header h3 {
@@ -4385,6 +4355,7 @@ body {
   flex: 1;
   overflow-y: auto;
   padding: 16px;
+  min-height: 0;
 }
 
 .analytics-overview-grid {
@@ -4557,7 +4528,132 @@ body {
   margin-right: 3px;
 }
 
-/* ============ DARK MODE ============ */
+/* ============================================================
+   🖥️ DESKTOP / PC LAYOUT (GRID) - 768px+
+   Mobile same as before, Desktop gets 3-4 column grid
+   ============================================================ */
+@media (min-width: 768px) {
+    /* Feed becomes GRID */
+    .feed {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+        gap: 20px 16px;
+        padding: 20px 24px;
+        align-content: start;
+    }
+
+    /* Title + empty feed span full width */
+    .feed-title {
+        grid-column: 1 / -1;
+        padding: 0 0 14px 0;
+        font-size: 1.15rem;
+        margin-bottom: 4px;
+    }
+
+    .empty-feed {
+        grid-column: 1 / -1;
+    }
+
+    /* Remove mobile margins on cards */
+    .video-card {
+        margin: 0;
+        border-radius: 16px;
+    }
+
+    /* Search bar centered on desktop */
+    .search-section {
+        padding: 8px 24px 12px;
+    }
+
+    .search-wrapper {
+        max-width: 640px;
+        margin: 0 auto;
+    }
+
+    /* Header padding on desktop */
+    .header {
+        padding: 16px 24px 12px;
+        padding-top: calc(16px + env(safe-area-inset-top));
+    }
+
+    /* Bottom nav spread out */
+    .bottom-nav {
+        padding: 10px 24px 14px;
+        padding-bottom: calc(14px + env(safe-area-inset-bottom));
+        justify-content: center;
+        gap: 50px;
+    }
+
+    .nav-item {
+        min-width: 80px;
+    }
+
+    /* Profile grid larger */
+    .profile-videos-grid {
+        grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+        padding: 0 20px 20px;
+    }
+
+    .profile-banner-new { height: 180px; }
+
+    /* Watch page video max height */
+    .live-watch-video-area { max-height: 70vh; }
+
+    /* Shorts max width */
+    .short-item { max-width: 500px; margin: 0 auto; }
+
+    /* Related thumb larger */
+    .related-thumb { width: 160px; height: 90px; }
+
+    /* Live setup larger */
+    .live-setup-inner { max-width: 700px; }
+}
+
+/* ============================================================
+   🖥️ LARGE DESKTOP - 1200px+ (bigger grid, 4 columns)
+   ============================================================ */
+@media (min-width: 1200px) {
+    .feed {
+        grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
+        gap: 24px 20px;
+        padding: 24px 32px;
+    }
+
+    .search-wrapper {
+        max-width: 720px;
+    }
+
+    .video-title {
+        font-size: 0.95rem;
+    }
+}
+
+/* ============================================================
+   🖥️ ULTRA WIDE - 1600px+ (5-6 columns)
+   ============================================================ */
+@media (min-width: 1600px) {
+    .feed {
+        grid-template-columns: repeat(auto-fill, minmax(360px, 1fr));
+        gap: 28px 24px;
+        padding: 28px 48px;
+    }
+}
+
+/* ============ EXTRA TWEAKS ============ */
+#forgotPasswordLink { transition: 0.2s; }
+#forgotPasswordLink:hover { color: #0a6b3c !important; }
+
+#ageConfirm {
+    width: 16px !important;
+    height: 16px !important;
+    margin: 0 !important;
+    cursor: pointer;
+    accent-color: #1e8b4b;
+}
+
+/* ============================================================
+   🌙 DARK MODE - COMPLETE
+   ============================================================ */
 body.dark-mode {
     background: #0f1419 !important;
     color: #e8f0f5;
@@ -4581,40 +4677,178 @@ body.dark-mode .video-card {
 
 body.dark-mode .video-title { color: #e8f0f5; }
 body.dark-mode .channel-name { color: #8fb8cc; }
+body.dark-mode .video-stats { color: #6f9ab0; }
 
 body.dark-mode .search-wrapper {
     background: #1a2530;
     border-color: #2a3a48;
 }
 
-body.dark-mode .search-wrapper input { color: #e8f0f5; }
+body.dark-mode .search-wrapper input {
+    color: #e8f0f5;
+}
+
+body.dark-mode .search-filters .filter-chip {
+    background: #1a2530;
+    color: #8fb8cc;
+    border-color: #2a3a48;
+}
+
+body.dark-mode .search-filters .filter-chip.active {
+    color: white;
+    background: linear-gradient(135deg, #1e8b4b, #1c7aa3);
+    border-color: #2e9b72;
+}
 
 body.dark-mode .bottom-nav {
     background: #1a2530;
     border-color: #2a3a48;
 }
 
-body.dark-mode .nav-item span { color: #8fb8cc; }
+body.dark-mode .nav-item { color: #8fb8cc; }
+body.dark-mode .nav-item.active { background: #24303c; color: #4cd964; }
+body.dark-mode .nav-item i { color: #4cd964; }
 
+/* Drawer */
+body.dark-mode .drawer { background: #1a2530; border-color: #2a3a48; }
+body.dark-mode .drawer-link { color: #e8f0f5; }
+body.dark-mode .drawer-link:hover { background: #24303c; }
+body.dark-mode .drawer-divider { background: #2a3a48; }
+
+/* Profile */
+body.dark-mode .profile-panel,
+body.dark-mode .channel-view-page,
+body.dark-mode .settings-page,
+body.dark-mode .subscriptions-page,
+body.dark-mode .notifications-page,
+body.dark-mode .monetization-page,
+body.dark-mode .watchlater-page,
+body.dark-mode .playlists-page,
+body.dark-mode .admin-panel-page,
+body.dark-mode .analytics-page,
+body.dark-mode .terms-page,
+body.dark-mode .support-page,
+body.dark-mode .channel-setup-page,
+body.dark-mode .metadata-page,
+body.dark-mode .edit-video-page {
+    background: #0f1419;
+}
+
+body.dark-mode .profile-header-bar,
+body.dark-mode .channel-view-header,
+body.dark-mode .watch-header {
+    background: #0b2d3b;
+}
+
+body.dark-mode .profile-tab { color: #8fb8cc; }
+body.dark-mode .profile-tab:hover { background: #24303c; }
+body.dark-mode .profile-tab.active { background: #24303c; color: #4cd964; }
+
+body.dark-mode .profile-video-card,
+body.dark-mode .video-actions-menu,
+body.dark-mode .notif-item,
 body.dark-mode .settings-section,
 body.dark-mode .criteria-card,
-body.dark-mode .profile-card,
-body.dark-mode .terms-section {
+body.dark-mode .criteria-item,
+body.dark-mode .terms-section,
+body.dark-mode .admin-report-item,
+body.dark-mode .playlist-card,
+body.dark-mode .related-video-card,
+body.dark-mode .comment-item {
     background: #1a2530;
     border-color: #2a3a48;
+    color: #e8f0f5;
 }
 
 body.dark-mode .settings-item-left span,
 body.dark-mode .profile-name,
+body.dark-mode .profile-video-title,
 body.dark-mode .video-actions-title,
-body.dark-mode .terms-section h2 {
+body.dark-mode .terms-section h2,
+body.dark-mode .criteria-card h2,
+body.dark-mode .criteria-item .ci-text h4,
+body.dark-mode .notif-text,
+body.dark-mode .admin-report-title,
+body.dark-mode .related-video-title,
+body.dark-mode .comment-author,
+body.dark-mode .comment-text,
+body.dark-mode .watch-title,
+body.dark-mode .watch-channel-name {
     color: #e8f0f5;
 }
 
-body.dark-mode .filter-chip {
-    background: #1a2530;
+body.dark-mode .profile-handle-new,
+body.dark-mode .profile-stats-new,
+body.dark-mode .profile-video-stats,
+body.dark-mode .video-actions-meta,
+body.dark-mode .criteria-item .ci-text p,
+body.dark-mode .notif-time,
+body.dark-mode .admin-report-meta,
+body.dark-mode .related-stats,
+body.dark-mode .comment-time {
     color: #8fb8cc;
+}
+
+body.dark-mode .settings-toggle {
+    background: #2a3a48;
+}
+
+body.dark-mode .settings-toggle.active {
+    background: #2e9b72;
+}
+
+body.dark-mode .watch-desc,
+body.dark-mode .channel-view-desc,
+body.dark-mode .profile-desc-new {
+    background: #1a2530;
+    color: #c8dae5;
     border-color: #2a3a48;
 }
 
-body.dark-mode .filter-chip.active { color: white; }
+body.dark-mode .comment-input-row input,
+body.dark-mode .comment-input-row textarea {
+    background: #1a2530;
+    color: #e8f0f5;
+    border-color: #2a3a48;
+}
+
+body.dark-mode .metadata-input,
+body.dark-mode .metadata-textarea,
+body.dark-mode .metadata-select {
+    background: #1a2530;
+    color: #e8f0f5;
+    border-color: #2a3a48;
+}
+
+body.dark-mode .action-btn {
+    background: #1a2530;
+    color: #e8f0f5;
+    border-color: #2a3a48;
+}
+
+body.dark-mode .subscribe-btn.subscribed {
+    background: #24303c;
+    color: #e8f0f5;
+}
+
+/* Admin tabs */
+body.dark-mode .admin-tabs { background: #1a2530; border-color: #2a3a48; }
+body.dark-mode .admin-tab { color: #8fb8cc; }
+
+/* Plus menu */
+body.dark-mode .plus-menu { background: #1a2530; }
+body.dark-mode .plus-menu-option:hover { background: #24303c; }
+body.dark-mode .plus-text h4 { color: #e8f0f5; }
+body.dark-mode .plus-text p { color: #8fb8cc; }
+
+/* Video actions */
+body.dark-mode .video-action-item:hover { background: #24303c; }
+body.dark-mode .video-action-item i { background: #24303c; color: #4cd964; }
+body.dark-mode .va-label { color: #e8f0f5; }
+
+/* Report modal */
+body.dark-mode .report-inner { background: #1a2530; }
+body.dark-mode .report-header h3 { color: #e8f0f5; }
+body.dark-mode .report-reason { border-color: #2a3a48; }
+body.dark-mode .report-reason:hover { background: #24303c; }
+body.dark-mode .rr-title { color: #e8f0f5; }
