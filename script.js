@@ -1,5 +1,9 @@
 /* ============================================================
-   FORTUBE v31 - ABSOLUTE FINAL (Sab Critical Issues Fixed)
+   FORTUBE v32 - REVENUE LIVE UPDATE FIXED
+   - Revenue har 1 view par update hoga
+   - Verified + Unverified dono par
+   - Region fallback fixed
+   - Withdrawals error fixed
    ============================================================ */
 
 if (typeof supabase === 'undefined') {
@@ -27,6 +31,7 @@ const AGORA_APP_ID = "e84b0914baa44e8c878fb68ade1d804e";
 const ADMIN_EMAILS = ["syedtechnical63@gmail.com"];
 const WITHDRAW_URL = "https://syedtechnical63-wq.github.io/withdrawal/";
 
+// ✅ REVENUE RATES (FIXED)
 const REVENUE_PER_1000_SUBS = 2.00;
 const REVENUE_PER_1000_HOURS = 5.00;
 const REVENUE_PER_1000_VIEWS_NORMAL = 0.08;
@@ -34,7 +39,7 @@ const REVENUE_PER_1000_VIEWS_QUALIFIED = 5.00;
 const MIN_WITHDRAWAL = 10.00;
 const MIN_WITHDRAW_AMOUNT = 10.00;
 const VERIFIED_THRESHOLD = 100000;
-const PREMIUM_REGIONS = ['United Kingdom', 'UK', 'United States', 'USA', 'US', 'Canada', 'Australia', 'AU', 'CA', 'GB'];
+const PREMIUM_REGIONS = ['United Kingdom', 'UK', 'United States', 'USA', 'US', 'Canada', 'Australia', 'AU', 'CA', 'GB', 'Germany', 'France', 'Netherlands', 'DE', 'FR', 'NL'];
 
 // ==================== INDEXEDDB ====================
 const IDB_NAME = 'fortube_videos_db';
@@ -117,11 +122,13 @@ const state = {
   userRegion: 'Global',
   shortsViewTracker: new Set(),
   revenueInterval: null,
+  revenueFastInterval: null,
   currentVisibleShortId: null,
   shortsUnmuted: false,
   shortsObserver: null,
   shortsPlayObserver: null,
   shortsHandlers: [],
+  revenueData: null,
   preferences: {
     language: 'English',
     region: 'Global',
@@ -454,7 +461,7 @@ function parseTags(tags) {
 }
 
 // ============================================================
-// 💰 REVENUE
+// 💰 REVENUE - FIXED (LIVE UPDATE)
 // ============================================================
 function calculateRevenue(subscribers, watchHours, totalViews, region) {
   const subRevenue = (subscribers / 1000) * REVENUE_PER_1000_SUBS;
@@ -468,34 +475,61 @@ function calculateRevenue(subscribers, watchHours, totalViews, region) {
   };
 }
 
+// ✅ FIXED: getUserRevenue with proper error handling
 async function getUserRevenue() {
   if (!state.channel || !state.user) return 0;
   try {
-    const { data: videos } = await supabaseClient
-      .from('videos').select('views, watch_time_seconds').eq('owner_id', state.user.id);
-    const { data: liveStreams } = await supabaseClient
-      .from('live_streams').select('views, duration_seconds').eq('channel_id', state.channel.id);
-    const videoViews = (videos || []).reduce((sum, v) => sum + (v.views || 0), 0);
-    const liveViews = (liveStreams || []).reduce((sum, l) => sum + (l.views || 0), 0);
+    // Videos fetch
+    let videos = [];
+    try {
+      const { data } = await supabaseClient
+        .from('videos').select('views, watch_time_seconds').eq('owner_id', state.user.id);
+      videos = data || [];
+    } catch (e) { console.warn('Videos fetch failed:', e); }
+
+    // Live streams fetch
+    let liveStreams = [];
+    try {
+      const { data } = await supabaseClient
+        .from('live_streams').select('views, duration_seconds').eq('channel_id', state.channel.id);
+      liveStreams = data || [];
+    } catch (e) { console.warn('Live streams fetch failed:', e); }
+
+    const videoViews = videos.reduce((sum, v) => sum + (v.views || 0), 0);
+    const liveViews = liveStreams.reduce((sum, l) => sum + (l.views || 0), 0);
     const totalViews = videoViews + liveViews;
-    const videoWatchSeconds = (videos || []).reduce((sum, v) => sum + (v.watch_time_seconds || 0), 0);
-    const liveWatchSeconds = (liveStreams || []).reduce((sum, l) => 
+
+    const videoWatchSeconds = videos.reduce((sum, v) => sum + (v.watch_time_seconds || 0), 0);
+    const liveWatchSeconds = liveStreams.reduce((sum, l) => 
       sum + ((l.duration_seconds || 0) * (l.views || 0)), 0);
     const watchHours = Math.floor((videoWatchSeconds + liveWatchSeconds) / 3600);
+
     const subs = state.channel.subscribers_count || 0;
     const region = state.channel.region || 'Global';
     const revenue = calculateRevenue(subs, watchHours, totalViews, region);
+
+    // Withdrawals fetch (safely)
     let withdrawn = 0;
     try {
-      const { data: withdrawals } = await supabaseClient
+      const { data: withdrawals, error } = await supabaseClient
         .from('withdrawals').select('amount').eq('user_id', state.user.id);
-      withdrawn = (withdrawals || []).reduce((sum, w) => sum + parseFloat(w.amount || 0), 0);
-    } catch (e) {}
+      if (!error && withdrawals) {
+        withdrawn = withdrawals.reduce((sum, w) => sum + parseFloat(w.amount || 0), 0);
+      }
+    } catch (e) { console.warn('Withdrawals fetch skipped:', e); }
+
     state.totalWithdrawn = withdrawn;
-    return Math.max(0, revenue.total - withdrawn);
+    state.revenueData = {
+      totalViews, watchHours, subs, region,
+      grossRevenue: revenue.total,
+      withdrawn,
+      availableBalance: Math.max(0, revenue.total - withdrawn),
+      breakdown: revenue
+    };
+    return state.revenueData.availableBalance;
   } catch (e) {
     console.error('Revenue error:', e);
-    return 0;
+    return state.revenueData?.availableBalance || 0;
   }
 }
 
@@ -517,25 +551,65 @@ async function getGrossRevenue() {
   } catch (e) { return 0; }
 }
 
+// ✅ FIXED: updateRevenueDisplay with proper element targeting
 async function updateRevenueDisplay() {
   if (!state.channel || !state.user) return 0;
   try {
     const revenue = await getUserRevenue();
+    
+    // Update all possible revenue elements
     const totalRevenueEl = document.getElementById('totalRevenue');
     if (totalRevenueEl) totalRevenueEl.textContent = revenue.toFixed(4);
+    
     const currentRevEl = document.getElementById('currentRevenue');
     if (currentRevEl) currentRevEl.textContent = revenue.toFixed(4);
+    
     const availableBalEl = document.getElementById('availableBalance');
     if (availableBalEl) availableBalEl.textContent = '$' + revenue.toFixed(4);
+    
+    const totalRevBreakdownEl = document.getElementById('totalRevenueBreakdown');
+    if (totalRevBreakdownEl) totalRevBreakdownEl.textContent = '$' + revenue.toFixed(4);
+    
     const amountInput = document.getElementById('withdrawAmountInput');
     if (amountInput) amountInput.max = revenue.toFixed(4);
+
+    // Update breakdown
+    if (state.revenueData) {
+      const revFromSubs = document.getElementById('revenueFromSubs');
+      if (revFromSubs) revFromSubs.textContent = '$' + state.revenueData.breakdown.subRevenue.toFixed(4);
+      
+      const revFromWatch = document.getElementById('revenueFromWatch');
+      if (revFromWatch) revFromWatch.textContent = '$' + state.revenueData.breakdown.watchRevenue.toFixed(4);
+      
+      const analyticsViews = document.getElementById('analyticsViews');
+      if (analyticsViews) analyticsViews.textContent = state.revenueData.totalViews.toLocaleString();
+      
+      const analyticsWatchTime = document.getElementById('analyticsWatchTime');
+      if (analyticsWatchTime) analyticsWatchTime.textContent = state.revenueData.watchHours.toLocaleString();
+      
+      const analyticsSubs = document.getElementById('analyticsSubs');
+      if (analyticsSubs) analyticsSubs.textContent = state.revenueData.subs.toLocaleString();
+    }
+    
     return revenue;
   } catch (e) {
     console.error('updateRevenueDisplay error:', e);
-    return 0;
+    return state.revenueData?.availableBalance || 0;
   }
 }
 
+// ✅ NEW: Fast revenue update (har 1 second)
+function startRevenueFastUpdate() {
+  if (state.revenueFastInterval) clearInterval(state.revenueFastInterval);
+  state.revenueFastInterval = setInterval(async () => {
+    if (monetizationPage?.classList.contains('open') || 
+        monetizationRevenuePage?.style.display === 'block') {
+      await updateRevenueDisplay();
+    }
+  }, 1000); // ✅ 1 second
+}
+
+// ✅ Regular revenue update (har 10 second)
 function startRevenueLiveUpdate() {
   if (state.revenueInterval) clearInterval(state.revenueInterval);
   state.revenueInterval = setInterval(async () => {
@@ -544,12 +618,18 @@ function startRevenueLiveUpdate() {
       await updateRevenueDisplay();
     }
   }, 10000);
+  // Also start fast update
+  startRevenueFastUpdate();
 }
 
 function stopRevenueLiveUpdate() {
   if (state.revenueInterval) {
     clearInterval(state.revenueInterval);
     state.revenueInterval = null;
+  }
+  if (state.revenueFastInterval) {
+    clearInterval(state.revenueFastInterval);
+    state.revenueFastInterval = null;
   }
 }
 
@@ -1172,6 +1252,10 @@ async function loadFeedFromSupabase() {
     }
     renderFeed('', currentFilter);
     if (currentFilter === 'shorts') renderShortsFeed();
+    // Update revenue after loading new data
+    if (state.channel && state.user) {
+      updateRevenueDisplay();
+    }
   } catch (e) {}
 }
 
@@ -1290,12 +1374,11 @@ function renderFeed(filterText = '', categoryFilter = null) {
 }
 
 // ============================================================
-// 🎵 SHORTS FEED - FINAL FIXED
+// 🎵 SHORTS FEED
 // ============================================================
 function renderShortsFeed() {
   if (!shortsFeed) return;
   
-  // ✅ CLEANUP: Destroy old observers and handlers first
   if (state.shortsPlayObserver) { state.shortsPlayObserver.disconnect(); state.shortsPlayObserver = null; }
   if (state.shortsObserver) { state.shortsObserver.disconnect(); state.shortsObserver = null; }
   state.shortsHandlers.forEach(({ el, type, fn }) => {
@@ -1371,16 +1454,13 @@ function renderShortsFeed() {
   html += '</div>';
   shortsFeed.innerHTML = html;
   
-  // ✅ Setup observers and video properties
   setupShortsAll();
   
-  // ✅ CRITICAL FIX: Define addHandler BEFORE using it
   const addHandler = (el, type, fn) => {
     el.addEventListener(type, fn);
     state.shortsHandlers.push({ el, type, fn });
   };
   
-  // Like button
   shortsFeed.querySelectorAll('[data-like]').forEach(btn => {
     addHandler(btn, 'click', async (e) => {
       e.stopPropagation();
@@ -1396,7 +1476,6 @@ function renderShortsFeed() {
     });
   });
   
-  // Comment button
   shortsFeed.querySelectorAll('[data-comment]').forEach(btn => {
     addHandler(btn, 'click', (e) => {
       e.stopPropagation();
@@ -1405,7 +1484,6 @@ function renderShortsFeed() {
     });
   });
   
-  // Share button
   shortsFeed.querySelectorAll('[data-share]').forEach(btn => {
     addHandler(btn, 'click', (e) => {
       e.stopPropagation();
@@ -1423,12 +1501,10 @@ function renderShortsFeed() {
     });
   });
   
-  // Channel click
   shortsFeed.querySelectorAll('[data-channel]').forEach(el => {
     addHandler(el, 'click', (e) => { e.stopPropagation(); openChannelView(el.dataset.channel); });
   });
   
-  // Title click
   shortsFeed.querySelectorAll('[data-title]').forEach(el => {
     addHandler(el, 'click', (e) => {
       e.stopPropagation();
@@ -1441,7 +1517,6 @@ function renderShortsFeed() {
     });
   });
   
-  // Menu button
   shortsFeed.querySelectorAll('[data-menu]').forEach(btn => {
     addHandler(btn, 'click', (e) => {
       e.stopPropagation();
@@ -1450,7 +1525,6 @@ function renderShortsFeed() {
     });
   });
   
-  // Play overlay
   shortsFeed.querySelectorAll('.short-play-overlay').forEach(overlay => {
     addHandler(overlay, 'click', (e) => {
       e.stopPropagation();
@@ -1476,7 +1550,7 @@ function renderShortsFeed() {
 }
 
 // ============================================================
-// ✅ SETUP SHORTS - FINAL
+// ✅ SETUP SHORTS
 // ============================================================
 function setupShortsAll() {
   const container = document.getElementById('shortsScrollContainer');
@@ -1498,7 +1572,6 @@ function setupShortsAll() {
     v.muted = !state.shortsUnmuted;
     v.dataset.visible = i === 0 ? 'true' : 'false';
     
-    // ✅ Loop via ended event - Direct check
     v.addEventListener('ended', (e) => {
       e.preventDefault();
       e.stopPropagation();
@@ -1522,7 +1595,6 @@ function setupShortsAll() {
         video.dataset.visible = 'true';
         state.currentVisibleShortId = shortItem?.dataset.shortId;
         
-        // Pause ALL other videos
         videos.forEach(v => {
           if (v !== video && !v.paused) {
             v.pause();
@@ -1532,7 +1604,6 @@ function setupShortsAll() {
           if (v !== video) v.dataset.visible = 'false';
         });
         
-        // Start tracking
         if (!video._watchStarted) {
           video._watchStarted = Date.now();
           video._shortId = shortItem?.dataset.shortId;
@@ -1573,7 +1644,6 @@ function setupShortsAll() {
           }
         }
         
-        // Record view
         if (video._watchStarted && video._shortId) {
           const elapsed = Math.floor((Date.now() - video._watchStarted) / 1000);
           if (elapsed > 2 && state.user && video._shortId) {
@@ -1602,7 +1672,6 @@ function setupShortsAll() {
   videos.forEach(v => playObserver.observe(v));
   state.shortsPlayObserver = playObserver;
   
-  // Progress bar
   videos.forEach((video) => {
     video.addEventListener('timeupdate', () => {
       const progressEl = video.closest('.short-item')?.querySelector('.short-progress-fill');
@@ -1614,7 +1683,6 @@ function setupShortsAll() {
     video.addEventListener('enterpictureinpicture', (e) => e.preventDefault());
   });
   
-  // Auto-play first video
   setTimeout(() => {
     const first = container.querySelector('.short-video');
     if (first && first.paused) {
@@ -1649,6 +1717,10 @@ async function addShortView(videoId, seconds) {
     vid.watch_time_seconds = newWatch;
     const viewsEl = document.querySelector(`[data-views="${videoId}"]`);
     if (viewsEl) viewsEl.innerHTML = `<i class="fas fa-eye"></i> ${formatViews(newViews)} views`;
+    // ✅ Live revenue update
+    if (state.channel && state.user && vid.owner_id === state.user.id) {
+      updateRevenueDisplay();
+    }
   } catch (e) { console.error('addShortView error:', e); }
 }
 
@@ -1659,6 +1731,10 @@ async function addShortWatchTimeOnly(videoId, seconds) {
     const newWatch = (vid.watch_time_seconds || 0) + seconds;
     await supabaseClient.from('videos').update({ watch_time_seconds: newWatch }).eq('id', videoId);
     vid.watch_time_seconds = newWatch;
+    // ✅ Live revenue update
+    if (state.channel && state.user && vid.owner_id === state.user.id) {
+      updateRevenueDisplay();
+    }
   } catch (e) {}
 }
 
@@ -1743,6 +1819,10 @@ async function openWatchPage(vid) {
         vid.views = newViews;
         const viewEl = document.getElementById('watchViewCount');
         if (viewEl) viewEl.textContent = formatViews(newViews);
+        // ✅ Live revenue update for video owner
+        if (vid.owner_id === state.user.id) {
+          updateRevenueDisplay();
+        }
       }
     } catch (e) {}
     state.currentWatchStartTime = Date.now();
@@ -1805,6 +1885,8 @@ async function openWatchPage(vid) {
         showToast('✅ Subscribed!');
         if (ch.owner_id && ch.owner_id !== state.user.id) {
           await createNotification(ch.owner_id, `${state.channel?.name || 'Someone'} subscribed!`, 'subscribe');
+          // ✅ Live revenue update for channel owner
+          if (ch.owner_id === state.user.id) updateRevenueDisplay();
         }
       }
     } catch (err) { showToast('❌ ' + err.message); }
@@ -1921,6 +2003,10 @@ async function addWatchTime(videoId, seconds) {
       if (!error) {
         const localVid = state.allVideos.find(v => v.id === videoId);
         if (localVid) localVid.watch_time_seconds = newWatchTime;
+        // ✅ Live revenue update
+        if (localVid && localVid.owner_id === state.user.id) {
+          updateRevenueDisplay();
+        }
       }
     }
   } catch (e) {}
@@ -2922,7 +3008,6 @@ async function openLiveWatch(vid) {
 }
 
 async function joinAgoraAsViewer(channelName) {
-  // ✅ Cleanup old client first
   if (state.agoraClient) {
     try { await state.agoraClient.leave(); } catch(e) {}
     state.agoraClient = null;
@@ -4417,13 +4502,14 @@ setInterval(async () => {
   }
 }, 30000);
 
+// ✅ FIXED: Fast revenue update (1 second)
 setInterval(() => {
   if (state.loggedIn && state.channel && 
       (monetizationPage?.classList.contains('open') || 
        monetizationRevenuePage?.style.display === 'block')) {
     updateRevenueDisplay();
   }
-}, 10000);
+}, 1000);
 
 // ✅ FIXED: Use fetch with keepalive instead of sendBeacon
 window.addEventListener('beforeunload', () => {
