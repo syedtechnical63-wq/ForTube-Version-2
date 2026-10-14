@@ -4561,3 +4561,251 @@ body.dark-mode .filter-chip {
 body.dark-mode .filter-chip.active {
     color: white;
 }
+/* ============================================================
+   📊 ANALYTICS PAGE - FIXED (Slide from Right)
+   ============================================================ */
+
+.analytics-page {
+    position: absolute;
+    inset: 0;
+    background: #f5f9ff;
+    z-index: 490;
+    transform: translateX(100%); /* Ye line ensure karti hai ke page right side se aaye */
+    transition: transform 0.35s cubic-bezier(0.4, 0, 0.2, 1);
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+}
+
+.analytics-page.open {
+    transform: translateX(0);
+}
+
+.analytics-page-header {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 14px 16px;
+    padding-top: calc(14px + env(safe-area-inset-top));
+    background: linear-gradient(135deg, #156b3c, #1c7aa3);
+    color: white;
+    flex-shrink: 0;
+}
+
+.analytics-page-header h3 {
+    font-size: 1.05rem;
+    font-weight: 800;
+    flex: 1;
+}
+
+.analytics-page-body {
+    flex: 1;
+    overflow-y: auto;
+    padding: 16px;
+    min-height: 0;
+}
+
+/* Overview Grid (Views, Watch Time, Subs) */
+.analytics-overview-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+    margin-bottom: 16px;
+}
+
+.analytics-stat-card {
+    background: white;
+    border-radius: 14px;
+    padding: 14px;
+    text-align: center;
+    border: 1px solid #d9ecf5;
+}
+
+.analytics-stat-card i {
+    font-size: 1.5rem;
+    color: #1e8b4b;
+    margin-bottom: 6px;
+}
+
+.analytics-stat-value {
+    font-size: 1.3rem;
+    font-weight: 900;
+    color: #0b4a5e;
+}
+
+.analytics-stat-label {
+    font-size: 0.7rem;
+    color: #4d7e8c;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin-top: 4px;
+}
+
+/* Sections (Growth, Breakdown) */
+.analytics-section {
+    background: white;
+    border-radius: 14px;
+    padding: 14px;
+    margin-bottom: 14px;
+    border: 1px solid #d9ecf5;
+}
+
+.analytics-section-title {
+    font-size: 0.9rem;
+    font-weight: 800;
+    color: #0b4a5e;
+    margin-bottom: 12px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+/* CPM Grid */
+.analytics-cpm-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+}
+
+.analytics-cpm-card {
+    background: linear-gradient(135deg, #e8f5ee, #e1f0fa);
+    border-radius: 12px;
+    padding: 12px;
+    text-align: center;
+    border: 1.5px solid #b9e0cf;
+}
+
+.analytics-cpm-label {
+    font-size: 0.65rem;
+    color: #4d7e8c;
+    font-weight: 700;
+    margin-bottom: 4px;
+}
+
+.analytics-cpm-value {
+    font-size: 1.2rem;
+    font-weight: 900;
+    color: #0b4a5e;
+}
+
+/* Region Rows */
+.analytics-region-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 0;
+    font-size: 0.8rem;
+}
+
+.analytics-region-name {
+    width: 90px;
+    font-weight: 700;
+    color: #0b4a5e;
+}
+
+.analytics-region-bar-wrap {
+    flex: 1;
+    height: 8px;
+    background: #e1f0fa;
+    border-radius: 4px;
+    overflow: hidden;
+}
+
+.analytics-region-bar {
+    height: 100%;
+    background: linear-gradient(90deg, #1e8b4b, #1c7aa3);
+    border-radius: 4px;
+}
+
+.analytics-region-value {
+    width: 60px;
+    text-align: right;
+    font-weight: 700;
+    color: #1e8b4b;
+    font-size: 0.75rem;
+}
+
+/* Video Rows */
+.analytics-video-row {
+    display: flex;
+    gap: 10px;
+    padding: 8px 0;
+    border-bottom: 1px solid #eef5fa;
+}
+
+.analytics-video-row:last-child {
+    border-bottom: none;
+}
+
+.analytics-video-thumb {
+    width: 70px;
+    height: 45px;
+    border-radius: 8px;
+    overflow: hidden;
+    background: linear-gradient(135deg, #1b5e4b, #1f6fa5);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: white;
+    flex-shrink: 0;
+}
+
+.analytics-video-thumb img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.analytics-video-info {
+    flex: 1;
+    min-width: 0;
+}
+
+.analytics-video-title {
+    font-size: 0.8rem;
+    font-weight: 700;
+    color: #0b2d3b;
+    margin-bottom: 4px;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+}
+
+.analytics-video-stats {
+    display: flex;
+    gap: 10px;
+    font-size: 0.7rem;
+    color: #4d7e8c;
+}
+
+.analytics-video-stats i {
+    color: #1e8b4b;
+    margin-right: 3px;
+}
+
+/* Dark Mode ke liye Analytics Page */
+body.dark-mode .analytics-page {
+    background: #0f1419;
+}
+
+body.dark-mode .analytics-stat-card,
+body.dark-mode .analytics-section {
+    background: #1a2530;
+    border-color: #2a3a48;
+}
+
+body.dark-mode .analytics-stat-value,
+body.dark-mode .analytics-section-title,
+body.dark-mode .analytics-cpm-value,
+body.dark-mode .analytics-region-name,
+body.dark-mode .analytics-video-title {
+    color: #e8f0f5;
+}
+
+body.dark-mode .analytics-stat-label,
+body.dark-mode .analytics-cpm-label,
+body.dark-mode .analytics-video-stats {
+    color: #8fb8cc;
+}
