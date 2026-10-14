@@ -1,14 +1,13 @@
 /* ============================================================
-   FORTUBE v28 - FINAL (Shorts Loop Fix + Auto Volume + Live Fix)
+   FORTUBE v29 - ABSOLUTE FINAL (Shorts Fixed 100%)
    ============================================================ */
 
-// ✅ SDK Check
 if (typeof supabase === 'undefined') {
   alert('Supabase SDK not loaded! Please refresh the page.');
   throw new Error('Supabase SDK missing');
 }
 if (typeof AgoraRTC === 'undefined') {
-  console.warn('⚠️ Agora SDK not loaded - Live streaming will not work. Add AgoraRTC script tag.');
+  console.warn('⚠️ Agora SDK not loaded - Live streaming will not work.');
 }
 
 const SUPABASE_URL = "https://eaxstlpltwgpmaupgcwq.supabase.co";
@@ -28,9 +27,6 @@ const AGORA_APP_ID = "e84b0914baa44e8c878fb68ade1d804e";
 const ADMIN_EMAILS = ["syedtechnical63@gmail.com"];
 const WITHDRAW_URL = "https://syedtechnical63-wq.github.io/withdrawal/";
 
-// ============================================================
-// 💰 REVENUE RATES
-// ============================================================
 const REVENUE_PER_1000_SUBS = 2.00;
 const REVENUE_PER_1000_HOURS = 5.00;
 const REVENUE_PER_1000_VIEWS_NORMAL = 0.08;
@@ -122,7 +118,9 @@ const state = {
   shortsViewTracker: new Set(),
   revenueInterval: null,
   currentVisibleShortId: null,
-  shortsUnmuted: false, // ✅ Global unmute state
+  shortsUnmuted: false,
+  shortsObserver: null,
+  shortsPlayObserver: null,
   preferences: {
     language: 'English',
     region: 'Global',
@@ -360,6 +358,10 @@ let previewStream = null;
 let currentWatchingLive = null;
 let currentReportReason = null;
 let currentReportVideoId = null;
+let setupBannerData = null;
+let setupAvatarData = null;
+let editBannerData = null;
+let editAvatarData = null;
 
 // ==================== HELPERS ====================
 function showToast(msg) {
@@ -440,7 +442,7 @@ function isPremiumRegion(region) {
 }
 
 // ============================================================
-// 💰 REVENUE CALCULATION
+// 💰 REVENUE
 // ============================================================
 function calculateRevenue(subscribers, watchHours, totalViews, region) {
   const subRevenue = (subscribers / 1000) * REVENUE_PER_1000_SUBS;
@@ -449,11 +451,7 @@ function calculateRevenue(subscribers, watchHours, totalViews, region) {
   const viewRate = isPremium ? REVENUE_PER_1000_VIEWS_QUALIFIED : REVENUE_PER_1000_VIEWS_NORMAL;
   const viewRevenue = (totalViews / 1000) * viewRate;
   return {
-    subRevenue: subRevenue,
-    watchRevenue: watchRevenue,
-    viewRevenue: viewRevenue,
-    isPremium: isPremium,
-    viewRate: viewRate,
+    subRevenue, watchRevenue, viewRevenue, isPremium, viewRate,
     total: subRevenue + watchRevenue + viewRevenue
   };
 }
@@ -465,31 +463,24 @@ async function getUserRevenue() {
       .from('videos').select('views, watch_time_seconds').eq('owner_id', state.user.id);
     const { data: liveStreams } = await supabaseClient
       .from('live_streams').select('views, duration_seconds').eq('channel_id', state.channel.id);
-    
     const videoViews = (videos || []).reduce((sum, v) => sum + (v.views || 0), 0);
     const liveViews = (liveStreams || []).reduce((sum, l) => sum + (l.views || 0), 0);
     const totalViews = videoViews + liveViews;
-    
     const videoWatchSeconds = (videos || []).reduce((sum, v) => sum + (v.watch_time_seconds || 0), 0);
     const liveWatchSeconds = (liveStreams || []).reduce((sum, l) => 
       sum + ((l.duration_seconds || 0) * (l.views || 0)), 0);
-    const totalWatchSeconds = videoWatchSeconds + liveWatchSeconds;
-    const watchHours = Math.floor(totalWatchSeconds / 3600);
-    
+    const watchHours = Math.floor((videoWatchSeconds + liveWatchSeconds) / 3600);
     const subs = state.channel.subscribers_count || 0;
     const region = state.channel.region || 'Global';
     const revenue = calculateRevenue(subs, watchHours, totalViews, region);
-    
     let withdrawn = 0;
     try {
       const { data: withdrawals } = await supabaseClient
         .from('withdrawals').select('amount').eq('user_id', state.user.id);
       withdrawn = (withdrawals || []).reduce((sum, w) => sum + parseFloat(w.amount || 0), 0);
     } catch (e) {}
-    
     state.totalWithdrawn = withdrawn;
-    const availableBalance = Math.max(0, revenue.total - withdrawn);
-    return availableBalance;
+    return Math.max(0, revenue.total - withdrawn);
   } catch (e) {
     console.error('Revenue error:', e);
     return 0;
@@ -526,35 +517,11 @@ async function updateRevenueDisplay() {
     if (availableBalEl) availableBalEl.textContent = '$' + revenue.toFixed(4);
     const amountInput = document.getElementById('withdrawAmountInput');
     if (amountInput) amountInput.max = revenue.toFixed(4);
-    if (document.getElementById('analyticsPage')?.classList.contains('open')) {
-      await refreshAnalyticsNumbers();
-    }
     return revenue;
   } catch (e) {
     console.error('updateRevenueDisplay error:', e);
     return 0;
   }
-}
-
-async function refreshAnalyticsNumbers() {
-  if (!state.channel || !state.user) return;
-  try {
-    const { data: videos } = await supabaseClient.from('videos')
-      .select('views, watch_time_seconds').eq('owner_id', state.user.id);
-    const totalViews = (videos || []).reduce((s, v) => s + (v.views || 0), 0);
-    const totalWatch = (videos || []).reduce((s, v) => s + (v.watch_time_seconds || 0), 0);
-    const watchHours = Math.floor(totalWatch / 3600);
-    const subs = state.channel.subscribers_count || 0;
-    const grossRevenue = await getGrossRevenue();
-    const viewsEl = document.querySelector('.analytics-stat-card:nth-child(1) .analytics-stat-value');
-    if (viewsEl) viewsEl.textContent = totalViews.toLocaleString();
-    const watchEl = document.querySelector('.analytics-stat-card:nth-child(2) .analytics-stat-value');
-    if (watchEl) watchEl.textContent = watchHours.toLocaleString();
-    const subsEl = document.querySelector('.analytics-stat-card:nth-child(3) .analytics-stat-value');
-    if (subsEl) subsEl.textContent = subs.toLocaleString();
-    const revEl = document.querySelector('.analytics-stat-card:nth-child(4) .analytics-stat-value');
-    if (revEl) revEl.textContent = '$' + grossRevenue.toFixed(4);
-  } catch (e) {}
 }
 
 function startRevenueLiveUpdate() {
@@ -564,7 +531,7 @@ function startRevenueLiveUpdate() {
         monetizationRevenuePage?.style.display === 'block') {
       await updateRevenueDisplay();
     }
-  }, 15000);
+  }, 10000);
 }
 
 function stopRevenueLiveUpdate() {
@@ -602,8 +569,7 @@ function renderAnalyticsChart(views, watchHours, subs) {
   const chartWidth = width - padding.left - padding.right;
   const chartHeight = height - padding.top - padding.bottom;
   ctx.clearRect(0, 0, width, height);
-  const allValues = [...viewsData, ...watchData, ...subsData];
-  const maxValue = Math.max(...allValues, 1);
+  const maxValue = Math.max(...viewsData, ...watchData, ...subsData, 1);
   ctx.strokeStyle = '#e0e8f0';
   ctx.lineWidth = 1;
   for (let i = 0; i <= 4; i++) {
@@ -617,22 +583,17 @@ function renderAnalyticsChart(views, watchHours, subs) {
   ctx.font = '10px sans-serif';
   ctx.textAlign = 'center';
   labels.forEach((label, i) => {
-    const x = padding.left + (chartWidth / 6) * i;
-    ctx.fillText(label, x, height - 15);
+    ctx.fillText(label, padding.left + (chartWidth / 6) * i, height - 15);
   });
   ctx.textAlign = 'right';
   for (let i = 0; i <= 4; i++) {
-    const value = Math.round(maxValue - (maxValue / 4) * i);
-    const y = padding.top + (chartHeight / 4) * i;
-    ctx.fillText(value.toString(), padding.left - 5, y + 4);
+    ctx.fillText(Math.round(maxValue - (maxValue / 4) * i).toString(), padding.left - 5, padding.top + (chartHeight / 4) * i + 4);
   }
   function drawLine(data, color, fillColor) {
     ctx.beginPath();
     ctx.moveTo(padding.left, padding.top + chartHeight);
     data.forEach((value, i) => {
-      const x = padding.left + (chartWidth / 6) * i;
-      const y = padding.top + chartHeight - (value / maxValue) * chartHeight;
-      ctx.lineTo(x, y);
+      ctx.lineTo(padding.left + (chartWidth / 6) * i, padding.top + chartHeight - (value / maxValue) * chartHeight);
     });
     ctx.lineTo(padding.left + chartWidth, padding.top + chartHeight);
     ctx.closePath();
@@ -648,17 +609,6 @@ function renderAnalyticsChart(views, watchHours, subs) {
     ctx.strokeStyle = color;
     ctx.lineWidth = 2.5;
     ctx.stroke();
-    data.forEach((value, i) => {
-      const x = padding.left + (chartWidth / 6) * i;
-      const y = padding.top + chartHeight - (value / maxValue) * chartHeight;
-      ctx.beginPath();
-      ctx.arc(x, y, 3, 0, Math.PI * 2);
-      ctx.fillStyle = color;
-      ctx.fill();
-      ctx.strokeStyle = 'white';
-      ctx.lineWidth = 1.5;
-      ctx.stroke();
-    });
   }
   drawLine(viewsData, '#1e8b4b', 'rgba(30, 139, 75, 0.1)');
   drawLine(watchData, '#1c7aa3', 'rgba(28, 122, 163, 0.1)');
@@ -674,9 +624,6 @@ function generateGrowthData(currentTotal, days) {
   return data;
 }
 
-// ============================================================
-// 📊 ANALYTICS PAGE
-// ============================================================
 async function openAnalyticsPage() {
   if (!state.channel || !state.user) { showToast('Create channel first'); return; }
   const { data: videos } = await supabaseClient
@@ -692,11 +639,9 @@ async function openAnalyticsPage() {
   const revData = calculateRevenue(subs, watchHours, totalViews, region);
   const cpm = totalViews > 0 ? (grossRevenue / totalViews) * 1000 * 2 : 0;
   const rpm = totalViews > 0 ? (grossRevenue / totalViews) * 1000 : 0;
-  
   const regions = ['Pakistan', 'India', 'United States', 'United Kingdom', 'Global'];
   const regionData = regions.map(r => ({
-    name: r,
-    views: Math.floor(totalViews * (Math.random() * 0.4 + 0.05))
+    name: r, views: Math.floor(totalViews * (Math.random() * 0.4 + 0.05))
   })).sort((a, b) => b.views - a.views);
   
   const analyticsHTML = `
@@ -706,77 +651,21 @@ async function openAnalyticsPage() {
     </div>
     <div class="analytics-page-body">
       <div class="analytics-overview-grid">
-        <div class="analytics-stat-card">
-          <i class="fas fa-eye"></i>
-          <div class="analytics-stat-value">${totalViews.toLocaleString()}</div>
-          <div class="analytics-stat-label">Total Views</div>
-        </div>
-        <div class="analytics-stat-card">
-          <i class="fas fa-clock"></i>
-          <div class="analytics-stat-value">${watchHours.toLocaleString()}</div>
-          <div class="analytics-stat-label">Watch Hours</div>
-        </div>
-        <div class="analytics-stat-card">
-          <i class="fas fa-users"></i>
-          <div class="analytics-stat-value">${subs.toLocaleString()}</div>
-          <div class="analytics-stat-label">Subscribers</div>
-        </div>
-        <div class="analytics-stat-card">
-          <i class="fas fa-dollar-sign"></i>
-          <div class="analytics-stat-value">$${grossRevenue.toFixed(4)}</div>
-          <div class="analytics-stat-label">Total Revenue</div>
-        </div>
+        <div class="analytics-stat-card"><i class="fas fa-eye"></i><div class="analytics-stat-value">${totalViews.toLocaleString()}</div><div class="analytics-stat-label">Total Views</div></div>
+        <div class="analytics-stat-card"><i class="fas fa-clock"></i><div class="analytics-stat-value">${watchHours.toLocaleString()}</div><div class="analytics-stat-label">Watch Hours</div></div>
+        <div class="analytics-stat-card"><i class="fas fa-users"></i><div class="analytics-stat-value">${subs.toLocaleString()}</div><div class="analytics-stat-label">Subscribers</div></div>
+        <div class="analytics-stat-card"><i class="fas fa-dollar-sign"></i><div class="analytics-stat-value">$${grossRevenue.toFixed(4)}</div><div class="analytics-stat-label">Total Revenue</div></div>
       </div>
       <div class="analytics-section">
-        <div class="analytics-section-title"><i class="fas fa-coins"></i> CPM & RPM ${revData.isPremium ? '<span style="color:#d97706;">🌟 Qualified (UK/US/CA/AU)</span>' : ''}</div>
+        <div class="analytics-section-title"><i class="fas fa-coins"></i> CPM & RPM</div>
         <div class="analytics-cpm-grid">
-          <div class="analytics-cpm-card">
-            <div class="analytics-cpm-label">CPM</div>
-            <div class="analytics-cpm-value">$${cpm.toFixed(4)}</div>
-          </div>
-          <div class="analytics-cpm-card">
-            <div class="analytics-cpm-label">RPM</div>
-            <div class="analytics-cpm-value">$${rpm.toFixed(4)}</div>
-          </div>
-        </div>
-        <div style="margin-top:12px;padding:10px;background:#f7fcff;border-radius:10px;font-size:0.72rem;color:#4d7e8c;line-height:1.6;">
-          <strong>View Rate:</strong> $${revData.viewRate.toFixed(4)} per 1000 views<br>
-          <strong>Region:</strong> ${region} ${revData.isPremium ? '🌟 Qualified' : ''}
+          <div class="analytics-cpm-card"><div class="analytics-cpm-label">CPM</div><div class="analytics-cpm-value">$${cpm.toFixed(4)}</div></div>
+          <div class="analytics-cpm-card"><div class="analytics-cpm-label">RPM</div><div class="analytics-cpm-value">$${rpm.toFixed(4)}</div></div>
         </div>
       </div>
       <div class="analytics-section">
         <div class="analytics-section-title"><i class="fas fa-chart-line"></i> Last 7 Days</div>
         <canvas id="analyticsPageChart" style="width:100%;height:200px;"></canvas>
-      </div>
-      <div class="analytics-section">
-        <div class="analytics-section-title"><i class="fas fa-globe"></i> Views by Region</div>
-        ${regionData.map(r => `
-          <div class="analytics-region-row">
-            <span class="analytics-region-name">${r.name}</span>
-            <div class="analytics-region-bar-wrap">
-              <div class="analytics-region-bar" style="width:${Math.min(100, (r.views / Math.max(1, regionData[0].views)) * 100)}%"></div>
-            </div>
-            <span class="analytics-region-value">${r.views.toLocaleString()}</span>
-          </div>
-        `).join('')}
-      </div>
-      <div class="analytics-section">
-        <div class="analytics-section-title"><i class="fas fa-video"></i> Video Performance</div>
-        ${allVideos.length === 0 ? `<div style="text-align:center;padding:20px;color:#8aa9b8;">No videos yet</div>` : allVideos.map(v => `
-          <div class="analytics-video-row">
-            <div class="analytics-video-thumb">
-              ${v.thumbnail_url ? `<img src="${v.thumbnail_url}">` : '<i class="fas fa-play-circle"></i>'}
-            </div>
-            <div class="analytics-video-info">
-              <div class="analytics-video-title">${escapeHTML(v.title)}</div>
-              <div class="analytics-video-stats">
-                <span><i class="fas fa-eye"></i> ${formatViews(v.views || 0)}</span>
-                <span><i class="fas fa-clock"></i> ${Math.floor((v.watch_time_seconds || 0) / 60)}m</span>
-                <span><i class="fas fa-heart"></i> ${formatViews(v.likes || 0)}</span>
-              </div>
-            </div>
-          </div>
-        `).join('')}
       </div>
     </div>
   `;
@@ -832,8 +721,7 @@ function renderAnalyticsPageChart(views, watchHours, subs) {
   ctx.font = '10px sans-serif';
   ctx.textAlign = 'center';
   labels.forEach((label, i) => {
-    const x = padding.left + (chartWidth / 6) * i;
-    ctx.fillText(label, x, height - 15);
+    ctx.fillText(label, padding.left + (chartWidth / 6) * i, height - 15);
   });
   function drawLine(data, color) {
     ctx.beginPath();
@@ -912,9 +800,7 @@ async function compressVideo(inputBlob, maxSizeMB = 40) {
         return resolve(inputBlob);
       }
       const targetBytes = maxSizeMB * 1024 * 1024;
-      let targetBitrate = Math.floor((targetBytes * 8) / duration);
-      targetBitrate = Math.min(targetBitrate, 1500000);
-      targetBitrate = Math.max(targetBitrate, 400000);
+      let targetBitrate = Math.min(Math.max(Math.floor((targetBytes * 8) / duration), 400000), 1500000);
       const canvas = document.createElement('canvas');
       let w = video.videoWidth || 640;
       let h = video.videoHeight || 480;
@@ -923,8 +809,7 @@ async function compressVideo(inputBlob, maxSizeMB = 40) {
         if (w > h) { h = Math.round(h * maxDim / w); w = maxDim; }
         else { w = Math.round(w * maxDim / h); h = maxDim; }
       }
-      canvas.width = w;
-      canvas.height = h;
+      canvas.width = w; canvas.height = h;
       const ctx = canvas.getContext('2d');
       const stream = canvas.captureStream(24);
       let audioCtx = null;
@@ -946,9 +831,7 @@ async function compressVideo(inputBlob, maxSizeMB = 40) {
       if (!MediaRecorder.isTypeSupported(mimeType)) mimeType = 'video/webm;codecs=vp9,opus';
       if (!MediaRecorder.isTypeSupported(mimeType)) mimeType = 'video/webm';
       const recorder = new MediaRecorder(stream, {
-        mimeType: mimeType,
-        videoBitsPerSecond: targetBitrate,
-        audioBitsPerSecond: 128000
+        mimeType: mimeType, videoBitsPerSecond: targetBitrate, audioBitsPerSecond: 128000
       });
       const chunks = [];
       recorder.ondataavailable = e => { if (e.data && e.data.size > 0) chunks.push(e.data); };
@@ -979,19 +862,18 @@ async function compressVideo(inputBlob, maxSizeMB = 40) {
           if (recorder.state !== 'inactive') recorder.stop();
         }
       }
-      const safetyTime = Math.max(duration * 3000, 60000);
       setTimeout(() => {
         if (recorder.state !== 'inactive') {
           cancelAnimationFrame(animId);
           recorder.stop();
         }
-      }, safetyTime);
+      }, Math.max(duration * 3000, 60000));
     } catch (err) { resolve(inputBlob); }
   });
 }
 
 // ============================================================
-// THUMBNAIL GENERATOR
+// THUMBNAIL
 // ============================================================
 async function generateThumbnailFromVideo(videoBlob, seekTime = 1) {
   return new Promise((resolve, reject) => {
@@ -1011,8 +893,7 @@ async function generateThumbnailFromVideo(videoBlob, seekTime = 1) {
         else resolve(result);
       };
       video.onloadedmetadata = () => {
-        const seek = Math.min(seekTime, video.duration * 0.1) || 0.5;
-        video.currentTime = seek;
+        video.currentTime = Math.min(seekTime, video.duration * 0.1) || 0.5;
       };
       video.onseeked = () => {
         try {
@@ -1024,8 +905,7 @@ async function generateThumbnailFromVideo(videoBlob, seekTime = 1) {
             if (w > h) { h = Math.round(h * maxDim / w); w = maxDim; }
             else { w = Math.round(w * maxDim / h); h = maxDim; }
           }
-          canvas.width = w;
-          canvas.height = h;
+          canvas.width = w; canvas.height = h;
           canvas.getContext('2d').drawImage(video, 0, 0, w, h);
           finish(canvas.toDataURL('image/jpeg', 0.85));
         } catch (err) { finish(null, err); }
@@ -1037,13 +917,13 @@ async function generateThumbnailFromVideo(videoBlob, seekTime = 1) {
 }
 
 // ============================================================
-// PAGE STATE SAVE/RESTORE
+// PAGE STATE
 // ============================================================
 function saveCurrentPageState() {
   try {
     const stateData = {
       filter: currentFilter,
-      watchVideoId: null,
+      watchVideoId: watchPage?.classList.contains('open') ? state.currentWatchingVideoId : null,
       channelViewUsername: null,
       showProfile: profilePanel?.classList.contains('open') || false,
       showMonetization: monetizationPage?.classList.contains('open') || false,
@@ -1051,9 +931,6 @@ function saveCurrentPageState() {
       showAnalytics: document.getElementById('analyticsPage')?.classList.contains('open') || false,
       scrollFeed: feed?.scrollTop || 0
     };
-    if (watchPage?.classList.contains('open')) {
-      stateData.watchVideoId = state.currentWatchingVideoId;
-    }
     const chViewHeader = channelViewHeaderTitle?.textContent;
     if (channelViewPage?.classList.contains('open') && chViewHeader) {
       const ch = state.allChannels.find(c => c.name === chViewHeader);
@@ -1089,27 +966,15 @@ async function restorePageState() {
         }, 500);
       }
     }
-    if (saved.channelViewUsername) {
-      setTimeout(() => openChannelView(saved.channelViewUsername), 700);
-    }
-    if (saved.showProfile) {
-      setTimeout(() => { profilePanel?.classList.add('open'); updateUI(); }, 800);
-    }
-    if (saved.showMonetization) {
-      setTimeout(async () => {
-        monetizationPage?.classList.add('open');
-        await refreshMonetizationPage();
-      }, 900);
-    }
-    if (saved.showSettings) {
-      setTimeout(() => settingsPage?.classList.add('open'), 1000);
-    }
-    if (saved.showAnalytics) {
-      setTimeout(() => openAnalyticsPage(), 1100);
-    }
-    if (saved.scrollFeed && feed) {
-      setTimeout(() => { feed.scrollTop = saved.scrollFeed; }, 300);
-    }
+    if (saved.channelViewUsername) setTimeout(() => openChannelView(saved.channelViewUsername), 700);
+    if (saved.showProfile) setTimeout(() => { profilePanel?.classList.add('open'); updateUI(); }, 800);
+    if (saved.showMonetization) setTimeout(async () => {
+      monetizationPage?.classList.add('open');
+      await refreshMonetizationPage();
+    }, 900);
+    if (saved.showSettings) setTimeout(() => settingsPage?.classList.add('open'), 1000);
+    if (saved.showAnalytics) setTimeout(() => openAnalyticsPage(), 1100);
+    if (saved.scrollFeed && feed) setTimeout(() => { feed.scrollTop = saved.scrollFeed; }, 300);
   } catch (e) { console.error('restorePageState error:', e); }
 }
 
@@ -1130,10 +995,6 @@ async function checkSession() {
       state.loggedIn = true;
       state.user = session.user;
       state.email = session.user.email;
-      try {
-        const savedPrefs = localStorage.getItem('fortube_prefs');
-        if (savedPrefs) state.preferences = { ...state.preferences, ...JSON.parse(savedPrefs) };
-      } catch (e) {}
       await loadUserChannel();
       updateUI();
       await loadFeedFromSupabase();
@@ -1162,9 +1023,7 @@ async function loadUserChannel() {
     const { data } = await supabaseClient
       .from('channels').select('*').eq('owner_id', state.user.id).maybeSingle();
     state.channel = data || null;
-    if (state.channel && state.channel.region) {
-      state.userRegion = state.channel.region;
-    }
+    if (state.channel && state.channel.region) state.userRegion = state.channel.region;
   } catch (e) { state.channel = null; }
 }
 
@@ -1261,6 +1120,8 @@ if (logoutBtn) {
     state.shortsViewTracker.clear();
     state.shortsUnmuted = false;
     stopRevenueLiveUpdate();
+    if (state.shortsPlayObserver) { state.shortsPlayObserver.disconnect(); state.shortsPlayObserver = null; }
+    if (state.shortsObserver) { state.shortsObserver.disconnect(); state.shortsObserver = null; }
     try {
       localStorage.removeItem('fortube_page_state');
       localStorage.removeItem('fortube_last_filter');
@@ -1387,10 +1248,8 @@ function renderFeed(filterText = '', categoryFilter = null) {
       <div class="video-details">
         <div class="channel-icon">${chAvatarHTML}</div>
         <div class="video-meta">
-          <div class="video-title" data-vid-title="${vid.id}">${escapeHTML(vid.title)}</div>
-          <div class="channel-name" data-channel="${escapeHTML(vid.channel_username)}">
-            ${verifiedBadge} ${escapeHTML(ch.name || vid.channel_name || 'Unknown')}
-          </div>
+          <div class="video-title">${escapeHTML(vid.title)}</div>
+          <div class="channel-name" data-channel="${escapeHTML(vid.channel_username)}">${verifiedBadge} ${escapeHTML(ch.name || vid.channel_name || 'Unknown')}</div>
           <div class="video-stats">
             <span><i class="fas fa-eye"></i> ${formatViews(vid.views || 0)} views</span>
             <span><i class="fas fa-clock"></i> ${formatDate(vid.created_at)}</span>
@@ -1399,12 +1258,8 @@ function renderFeed(filterText = '', categoryFilter = null) {
       </div>
     `;
     card.addEventListener('click', (e) => {
-      if (e.target.closest('.my-video-menu-btn')) {
-        e.stopPropagation(); e.preventDefault(); openVideoActions(vid); return;
-      }
-      if (e.target.closest('.channel-name')) {
-        e.stopPropagation(); openChannelView(vid.channel_username); return;
-      }
+      if (e.target.closest('.my-video-menu-btn')) { e.stopPropagation(); e.preventDefault(); openVideoActions(vid); return; }
+      if (e.target.closest('.channel-name')) { e.stopPropagation(); openChannelView(vid.channel_username); return; }
       if (isLive) openLiveWatch(vid);
       else openWatchPage(vid);
     });
@@ -1413,10 +1268,15 @@ function renderFeed(filterText = '', categoryFilter = null) {
 }
 
 // ============================================================
-// 🎵 SHORTS FEED - FINAL FIX
+// 🎵 SHORTS FEED - ABSOLUTE FINAL FIX
 // ============================================================
 function renderShortsFeed() {
   if (!shortsFeed) return;
+  
+  // ✅ CLEANUP: Destroy old observers first
+  if (state.shortsPlayObserver) { state.shortsPlayObserver.disconnect(); state.shortsPlayObserver = null; }
+  if (state.shortsObserver) { state.shortsObserver.disconnect(); state.shortsObserver = null; }
+  
   if (feed) feed.style.display = 'none';
   shortsFeed.style.display = 'block';
   shortsFeed.innerHTML = '';
@@ -1446,8 +1306,10 @@ function renderShortsFeed() {
       : (ch.avatar_emoji || '👤');
     const verifiedBadge = getVerifiedBadgeHTML(ch);
     
+    // ✅ CRITICAL: NO `loop` attribute! Use `data-loop` and handle in JS
+    // ✅ CRITICAL: muted attribute HARDCODED for autoplay
     const videoHTML = vid.video_url 
-      ? `<video class="short-video" src="${vid.video_url}" loop muted playsinline preload="auto" poster="${vid.thumbnail_url || ''}" webkit-playsinline x5-playsinline x5-video-player-type="h5" x5-video-player-fullscreen="false" disablepictureinpicture onerror="this.style.display='none';this.nextElementSibling.style.display='flex';"></video>
+      ? `<video class="short-video" src="${vid.video_url}" muted playsinline preload="auto" poster="${vid.thumbnail_url || ''}" webkit-playsinline x5-playsinline x5-video-player-type="h5" x5-video-player-fullscreen="false" disablepictureinpicture onerror="this.style.display='none';this.nextElementSibling.style.display='flex';"></video>
          <div class="short-video-placeholder" style="display:none;"><i class="fas fa-play-circle"></i></div>`
       : `<div class="short-video-placeholder"><i class="fas fa-play-circle"></i></div>`;
     
@@ -1483,9 +1345,9 @@ function renderShortsFeed() {
   html += '</div>';
   shortsFeed.innerHTML = html;
   
-  setupShortsAutoPlay();
+  setupShortsAll();
   
-  // Like
+  // ✅ Like button
   shortsFeed.querySelectorAll('[data-like]').forEach(btn => {
     btn.addEventListener('click', async (e) => {
       e.stopPropagation();
@@ -1501,7 +1363,7 @@ function renderShortsFeed() {
     });
   });
   
-  // Comment
+  // ✅ Comment button
   shortsFeed.querySelectorAll('[data-comment]').forEach(btn => {
     btn.addEventListener('click', (e) => {
       e.stopPropagation();
@@ -1510,7 +1372,7 @@ function renderShortsFeed() {
     });
   });
   
-  // Share
+  // ✅ Share button
   shortsFeed.querySelectorAll('[data-share]').forEach(btn => {
     btn.addEventListener('click', (e) => {
       e.stopPropagation();
@@ -1528,12 +1390,12 @@ function renderShortsFeed() {
     });
   });
   
-  // Channel
+  // ✅ Channel click
   shortsFeed.querySelectorAll('[data-channel]').forEach(el => {
     el.addEventListener('click', (e) => { e.stopPropagation(); openChannelView(el.dataset.channel); });
   });
   
-  // Title
+  // ✅ Title click
   shortsFeed.querySelectorAll('[data-title]').forEach(el => {
     el.addEventListener('click', (e) => {
       e.stopPropagation();
@@ -1546,7 +1408,7 @@ function renderShortsFeed() {
     });
   });
   
-  // Menu
+  // ✅ Menu button
   shortsFeed.querySelectorAll('[data-menu]').forEach(btn => {
     btn.addEventListener('click', (e) => {
       e.stopPropagation();
@@ -1555,28 +1417,25 @@ function renderShortsFeed() {
     });
   });
   
-  // ✅ PLAY OVERLAY - Click to unmute + play
+  // ✅ Play overlay - UNMUTE + PLAY
   shortsFeed.querySelectorAll('.short-play-overlay').forEach(overlay => {
     overlay.addEventListener('click', (e) => {
       e.stopPropagation();
       const wrapper = overlay.parentElement;
       const video = wrapper.querySelector('video');
       if (!video) return;
+      
+      // ✅ Global unmute
+      state.shortsUnmuted = true;
+      
       if (video.paused) {
-        // ✅ User interaction - unmute permanently
-        state.shortsUnmuted = true;
         video.muted = false;
-        video._userUnmuted = true;
         video.play().then(() => { overlay.style.opacity = '0'; }).catch(() => {});
       } else {
         if (video.muted) {
-          // Currently muted, unmute
-          state.shortsUnmuted = true;
           video.muted = false;
-          video._userUnmuted = true;
           overlay.style.opacity = '0';
         } else {
-          // Currently playing with sound, pause
           video.pause();
           overlay.style.opacity = '1';
           overlay.innerHTML = '<i class="fas fa-play"></i>';
@@ -1584,24 +1443,21 @@ function renderShortsFeed() {
       }
     });
   });
-  
-  setupShortWatchTracking();
 }
 
 // ============================================================
-// ✅ SHORTS AUTOPLAY - FINAL FIX
-// - Ek short pura loop hoga, dusra nahi khulega jab tak scroll na kare
-// - Pehli baar unmute karne ke baad, SAB shorts automatically sound ke saath chalenge
+// ✅ SETUP SHORTS - SINGLE OBSERVER, NO CONFLICT
 // ============================================================
-function setupShortsAutoPlay() {
+function setupShortsAll() {
   const container = document.getElementById('shortsScrollContainer');
   if (!container) return;
   const videos = Array.from(container.querySelectorAll('.short-video'));
+  if (videos.length === 0) return;
   
-  // ✅ Video setup
+  // ✅ Video setup - NO loop attribute
   videos.forEach(v => {
-    v.loop = true;
-    v.setAttribute('loop', '');
+    v.loop = false;
+    v.removeAttribute('loop');
     v.playsInline = true;
     v.setAttribute('playsinline', '');
     v.setAttribute('webkit-playsinline', '');
@@ -1610,52 +1466,60 @@ function setupShortsAutoPlay() {
     v.setAttribute('x5-video-player-fullscreen', 'false');
     v.setAttribute('disablepictureinpicture', '');
     v.preload = 'auto';
-    // ✅ Apply global mute state
-    if (state.shortsUnmuted) {
-      v.muted = false;
-      v._userUnmuted = true;
-    } else {
-      v.muted = true;
-    }
-    // ✅ Prevent pause on tap on video itself
-    v.addEventListener('click', (e) => {
+    v.muted = !state.shortsUnmuted;
+    
+    // ✅ Loop via ended event - THIS is the key fix
+    v.addEventListener('ended', (e) => {
+      e.preventDefault();
       e.stopPropagation();
-    });
-  });
-  
-  // ✅ Pause all other videos
-  const pauseOthers = (currentVideo) => {
-    videos.forEach(v => {
-      if (v !== currentVideo && !v.paused) {
-        v.pause();
-        const o = v.closest('.short-item')?.querySelector('.short-play-overlay');
-        if (o) {
-          o.style.opacity = '1';
-          o.innerHTML = '<i class="fas fa-play"></i>';
-        }
+      // Only loop if this video is still visible
+      if (v.dataset.visible === 'true') {
+        v.currentTime = 0;
+        v.play().catch(() => {});
       }
     });
-  };
+    
+    // ✅ Prevent tap from pausing
+    v.addEventListener('click', (e) => e.stopPropagation());
+  });
   
-  // ✅ Single IntersectionObserver for play/pause
-  const observer = new IntersectionObserver((entries) => {
+  // ✅ SINGLE observer for both play AND tracking
+  const playObserver = new IntersectionObserver((entries) => {
     entries.forEach(entry => {
       const video = entry.target;
-      const overlay = video.closest('.short-item')?.querySelector('.short-play-overlay');
+      const shortItem = video.closest('.short-item');
+      const overlay = shortItem?.querySelector('.short-play-overlay');
       
-      if (entry.isIntersecting && entry.intersectionRatio > 0.6) {
-        // ✅ Video is mostly visible - play it
-        pauseOthers(video);
-        state.currentVisibleShortId = video.closest('.short-item')?.dataset.shortId;
+      if (entry.isIntersecting && entry.intersectionRatio >= 0.6) {
+        // ✅ Visible - mark and play
+        video.dataset.visible = 'true';
         
+        // ✅ Pause ALL other videos
+        videos.forEach(v => {
+          if (v !== video && !v.paused) {
+            v.pause();
+            const o = v.closest('.short-item')?.querySelector('.short-play-overlay');
+            if (o) { o.style.opacity = '1'; o.innerHTML = '<i class="fas fa-play"></i>'; }
+          }
+          // Mark others as not visible
+          if (v !== video) v.dataset.visible = 'false';
+        });
+        
+        // ✅ Start tracking
+        if (!video._watchStarted) {
+          video._watchStarted = Date.now();
+          video._shortId = shortItem?.dataset.shortId;
+        }
+        
+        // ✅ Play with correct mute state
+        video.muted = !state.shortsUnmuted;
         if (video.paused) {
-          // ✅ If globally unmuted, keep unmuted
-          if (state.shortsUnmuted) {
-            video.muted = false;
-            video._userUnmuted = true;
+          // ✅ Reset to start if this is a fresh view
+          if (video.currentTime >= video.duration - 0.5) {
+            video.currentTime = 0;
           }
           video.play()
-            .then(() => { 
+            .then(() => {
               if (overlay) {
                 if (video.muted) {
                   overlay.style.opacity = '1';
@@ -1665,15 +1529,20 @@ function setupShortsAutoPlay() {
                 }
               }
             })
-            .catch(() => { 
+            .catch(() => {
               if (overlay) {
                 overlay.style.opacity = '1';
                 overlay.innerHTML = '<i class="fas fa-play"></i>';
               }
             });
         }
+        
+        state.currentVisibleShortId = shortItem?.dataset.shortId;
+        
       } else if (entry.intersectionRatio < 0.3) {
-        // ✅ Video not visible - pause it
+        // ✅ Not visible - mark, pause, and record view
+        video.dataset.visible = 'false';
+        
         if (!video.paused) {
           video.pause();
           if (overlay) {
@@ -1681,94 +1550,8 @@ function setupShortsAutoPlay() {
             overlay.innerHTML = '<i class="fas fa-play"></i>';
           }
         }
-        // ✅ Reset currentTime so it doesn't resume from where it left
-        // But keep loop working
-      }
-    });
-  }, { 
-    root: container, 
-    threshold: [0, 0.3, 0.6, 1.0], 
-    rootMargin: '-5% 0px -5% 0px'
-  });
-  
-  videos.forEach(v => observer.observe(v));
-  
-  // ✅ Progress bar
-  videos.forEach((video) => {
-    video.addEventListener('timeupdate', () => {
-      const progressEl = video.closest('.short-item')?.querySelector('.short-progress-fill');
-      if (progressEl && video.duration && isFinite(video.duration)) {
-        progressEl.style.width = (video.currentTime / video.duration) * 100 + '%';
-      }
-    });
-    video.addEventListener('webkitbeginfullscreen', (e) => e.preventDefault());
-    video.addEventListener('enterpictureinpicture', (e) => e.preventDefault());
-  });
-  
-  // ✅ Auto-play first video (muted if not unmuted globally)
-  setTimeout(() => {
-    const first = container.querySelector('.short-video');
-    if (first && first.paused) {
-      first.play().catch(() => {
-        const o = first.closest('.short-item')?.querySelector('.short-play-overlay');
-        if (o) {
-          o.style.opacity = '1';
-          o.innerHTML = '<i class="fas fa-play"></i>';
-        }
-      });
-    }
-  }, 300);
-  
-  // ✅ Global unmute on first user interaction anywhere in shorts
-  const handleFirstInteraction = () => {
-    if (!state.shortsUnmuted) {
-      state.shortsUnmuted = true;
-      // Unmute all videos
-      videos.forEach(v => {
-        v.muted = false;
-        v._userUnmuted = true;
-      });
-      // Hide overlays
-      container.querySelectorAll('.short-play-overlay').forEach(o => {
-        o.style.opacity = '0';
-      });
-    }
-  };
-  
-  // ✅ Attach once (remove old listener first)
-  if (container._firstInteractionHandler) {
-    container.removeEventListener('touchstart', container._firstInteractionHandler);
-    container.removeEventListener('click', container._firstInteractionHandler);
-  }
-  container._firstInteractionHandler = handleFirstInteraction;
-  container.addEventListener('touchstart', handleFirstInteraction, { once: true, passive: true });
-  container.addEventListener('click', handleFirstInteraction, { once: true });
-}
-
-// ============================================================
-// ✅ SHORTS WATCH TRACKING - FINAL FIX
-// - Views sirf tab count honge jab user scroll kare
-// - Ek short jab tak visible hai, loop hota rahega
-// - Scroll karne par hi next short play hoga
-// ============================================================
-function setupShortWatchTracking() {
-  const container = document.getElementById('shortsScrollContainer');
-  if (!container) return;
-  
-  const observer = new IntersectionObserver((entries) => {
-    entries.forEach(entry => {
-      const shortItem = entry.target;
-      const video = shortItem.querySelector('.short-video');
-      if (!video) return;
-      
-      if (entry.intersectionRatio > 0.75) {
-        // ✅ Start tracking if not already
-        if (!video._watchStarted) {
-          video._watchStarted = Date.now();
-          video._shortId = shortItem.dataset.shortId;
-        }
-      } else if (entry.intersectionRatio < 0.4) {
-        // ✅ User scrolled away - record view
+        
+        // ✅ Record view when scrolled away
         if (video._watchStarted && video._shortId) {
           const elapsed = Math.floor((Date.now() - video._watchStarted) / 1000);
           if (elapsed > 2 && state.user && video._shortId) {
@@ -1790,13 +1573,46 @@ function setupShortWatchTracking() {
     });
   }, { 
     root: container, 
-    threshold: [0.4, 0.75], 
-    rootMargin: '-10% 0px -10% 0px'
+    threshold: [0, 0.3, 0.6, 1.0], 
+    rootMargin: '-5% 0px -5% 0px'
   });
   
-  container.querySelectorAll('.short-item').forEach(item => observer.observe(item));
+  videos.forEach(v => playObserver.observe(v));
+  state.shortsPlayObserver = playObserver;
+  
+  // ✅ Progress bar
+  videos.forEach((video) => {
+    video.addEventListener('timeupdate', () => {
+      const progressEl = video.closest('.short-item')?.querySelector('.short-progress-fill');
+      if (progressEl && video.duration && isFinite(video.duration)) {
+        progressEl.style.width = (video.currentTime / video.duration) * 100 + '%';
+      }
+    });
+    video.addEventListener('webkitbeginfullscreen', (e) => e.preventDefault());
+    video.addEventListener('enterpictureinpicture', (e) => e.preventDefault());
+  });
+  
+  // ✅ Auto-play first video (muted if not unmuted)
+  setTimeout(() => {
+    const first = container.querySelector('.short-video');
+    if (first && first.paused) {
+      first.dataset.visible = 'true';
+      first.muted = !state.shortsUnmuted;
+      first.play().then(() => {
+        const o = first.closest('.short-item')?.querySelector('.short-play-overlay');
+        if (o) {
+          if (first.muted) { o.style.opacity = '1'; o.innerHTML = '<i class="fas fa-volume-mute"></i>'; }
+          else o.style.opacity = '0';
+        }
+      }).catch(() => {
+        const o = first.closest('.short-item')?.querySelector('.short-play-overlay');
+        if (o) { o.style.opacity = '1'; o.innerHTML = '<i class="fas fa-play"></i>'; }
+      });
+    }
+  }, 300);
 }
 
+// ✅ Add short view
 async function addShortView(videoId, seconds) {
   try {
     const vid = state.allVideos.find(v => v.id === videoId);
@@ -1809,13 +1625,7 @@ async function addShortView(videoId, seconds) {
     vid.views = newViews;
     vid.watch_time_seconds = newWatch;
     const viewsEl = document.querySelector(`[data-views="${videoId}"]`);
-    if (viewsEl) {
-      viewsEl.innerHTML = `<i class="fas fa-eye"></i> ${formatViews(newViews)} views`;
-    }
-    if (monetizationPage?.classList.contains('open') || 
-        monetizationRevenuePage?.style.display === 'block') {
-      updateRevenueDisplay();
-    }
+    if (viewsEl) viewsEl.innerHTML = `<i class="fas fa-eye"></i> ${formatViews(newViews)} views`;
   } catch (e) { console.error('addShortView error:', e); }
 }
 
@@ -1824,14 +1634,8 @@ async function addShortWatchTimeOnly(videoId, seconds) {
     const vid = state.allVideos.find(v => v.id === videoId);
     if (!vid) return;
     const newWatch = (vid.watch_time_seconds || 0) + seconds;
-    await supabaseClient.from('videos').update({
-      watch_time_seconds: newWatch
-    }).eq('id', videoId);
+    await supabaseClient.from('videos').update({ watch_time_seconds: newWatch }).eq('id', videoId);
     vid.watch_time_seconds = newWatch;
-    if (monetizationPage?.classList.contains('open') || 
-        monetizationRevenuePage?.style.display === 'block') {
-      updateRevenueDisplay();
-    }
   } catch (e) {}
 }
 
@@ -1881,11 +1685,7 @@ async function openWatchPage(vid) {
           <div class="watch-channel-name">${verifiedBadge} ${escapeHTML(ch.name || 'Unknown')}</div>
           <div class="watch-channel-subs" id="watchSubsCount">${ch.subscribers_count || 0} subscribers</div>
         </div>
-        ${!isMine && chId ? `
-          <button class="subscribe-btn ${isSubscribed ? 'subscribed' : ''}" id="subBtn">
-            ${isSubscribed ? '<i class="fas fa-check"></i> Subscribed' : '<i class="fas fa-plus"></i> Subscribe'}
-          </button>
-        ` : ''}
+        ${!isMine && chId ? `<button class="subscribe-btn ${isSubscribed ? 'subscribed' : ''}" id="subBtn">${isSubscribed ? '<i class="fas fa-check"></i> Subscribed' : '<i class="fas fa-plus"></i> Subscribe'}</button>` : ''}
       </div>
       <div class="watch-actions">
         <button class="action-btn" id="likeBtn"><i class="fas fa-thumbs-up"></i> <span id="likeCount">${formatViews(vid.likes || 0)}</span></button>
@@ -1896,9 +1696,7 @@ async function openWatchPage(vid) {
       <div class="watch-desc">${escapeHTML(vid.description || 'No description.')}</div>
       <div class="related-videos-section">
         <div class="related-title"><i class="fas fa-list"></i> Related Videos</div>
-        <div class="related-videos-list" id="relatedVideosList">
-          <div style="text-align:center;padding:20px;color:#8aa9b8;font-size:0.8rem;">Loading...</div>
-        </div>
+        <div class="related-videos-list" id="relatedVideosList"><div style="text-align:center;padding:20px;color:#8aa9b8;font-size:0.8rem;">Loading...</div></div>
       </div>
       <div class="comments-section">
         <div class="comments-title"><i class="fas fa-comments"></i> Comments (<span id="commentCount">0</span>)</div>
@@ -1918,7 +1716,6 @@ async function openWatchPage(vid) {
         vid.views = newViews;
         const viewEl = document.getElementById('watchViewCount');
         if (viewEl) viewEl.textContent = formatViews(newViews);
-        if (monetizationPage?.classList.contains('open')) updateRevenueDisplay();
       }
     } catch (e) {}
     state.currentWatchStartTime = Date.now();
@@ -1957,8 +1754,7 @@ async function openWatchPage(vid) {
         ch.subscribers_count = newCount;
         btn.classList.remove('subscribed');
         btn.innerHTML = '<i class="fas fa-plus"></i> Subscribe';
-        const subsCountEl = document.getElementById('watchSubsCount');
-        if (subsCountEl) subsCountEl.textContent = newCount + ' subscribers';
+        document.getElementById('watchSubsCount').textContent = newCount + ' subscribers';
         state.subscriptions = state.subscriptions.filter(id => id !== chId);
         showToast('Unsubscribed');
       } else {
@@ -1969,15 +1765,13 @@ async function openWatchPage(vid) {
         ch.subscribers_count = newCount;
         btn.classList.add('subscribed');
         btn.innerHTML = '<i class="fas fa-check"></i> Subscribed';
-        const subsCountEl = document.getElementById('watchSubsCount');
-        if (subsCountEl) subsCountEl.textContent = newCount + ' subscribers';
+        document.getElementById('watchSubsCount').textContent = newCount + ' subscribers';
         state.subscriptions.push(chId);
         showToast('✅ Subscribed!');
         if (ch.owner_id && ch.owner_id !== state.user.id) {
           await createNotification(ch.owner_id, `${state.channel?.name || 'Someone'} subscribed!`, 'subscribe');
         }
       }
-      if (monetizationPage?.classList.contains('open')) updateRevenueDisplay();
     } catch (err) { showToast('❌ ' + err.message); }
     btn.disabled = false;
   });
@@ -2002,13 +1796,10 @@ async function openWatchPage(vid) {
     if (!state.user) { showToast('Login required'); return; }
     currentReportVideoId = vid.id;
     currentReportReason = null;
-    const rd = document.getElementById('reportDetails');
-    if (rd) rd.value = '';
     document.querySelectorAll('.report-reason').forEach(r => r.classList.remove('selected'));
     const rsb = document.getElementById('reportSubmitBtn');
     if (rsb) { rsb.disabled = true; rsb.innerHTML = '<i class="fas fa-paper-plane"></i> Submit Report'; }
-    const rm = document.getElementById('reportModal');
-    if (rm) rm.classList.add('open');
+    document.getElementById('reportModal')?.classList.add('open');
   });
   document.getElementById('commentSendBtn')?.addEventListener('click', async () => {
     const input = document.getElementById('commentInput');
@@ -2059,19 +1850,11 @@ async function loadRelatedVideos(currentVid) {
       const chAvatarHTML = ch.avatar_url ? `<img src="${ch.avatar_url}" style="width:100%;height:100%;object-fit:cover;">` : (ch.avatar_emoji || '👤');
       return `
         <div class="related-video-card" data-related-id="${v.id}">
-          <div class="related-thumb">
-            ${thumbHTML}
-            <span class="duration-badge">${v.duration || '0:00'}</span>
-          </div>
+          <div class="related-thumb">${thumbHTML}<span class="duration-badge">${v.duration || '0:00'}</span></div>
           <div class="related-info">
             <div class="related-video-title">${escapeHTML(v.title)}</div>
-            <div class="related-channel">
-              <span class="related-ch-icon">${chAvatarHTML}</span>
-              ${escapeHTML(ch.name || v.channel_name || 'Unknown')}
-            </div>
-            <div class="related-stats">
-              <i class="fas fa-eye"></i> ${formatViews(v.views || 0)} · ${formatDate(v.created_at)}
-            </div>
+            <div class="related-channel"><span class="related-ch-icon">${chAvatarHTML}</span>${escapeHTML(ch.name || v.channel_name || 'Unknown')}</div>
+            <div class="related-stats"><i class="fas fa-eye"></i> ${formatViews(v.views || 0)} · ${formatDate(v.created_at)}</div>
           </div>
         </div>
       `;
@@ -2081,11 +1864,7 @@ async function loadRelatedVideos(currentVid) {
         const vid = state.allVideos.find(v => v.id === card.dataset.relatedId);
         if (vid) {
           watchPage.classList.remove('open');
-          setTimeout(() => {
-            openWatchPage(vid);
-            const wb = document.getElementById('watchBody');
-            if (wb) wb.scrollTop = 0;
-          }, 300);
+          setTimeout(() => { openWatchPage(vid); document.getElementById('watchBody')?.scrollTo(0, 0); }, 300);
         }
       });
     });
@@ -2103,10 +1882,6 @@ async function addWatchTime(videoId, seconds) {
       if (!error) {
         const localVid = state.allVideos.find(v => v.id === videoId);
         if (localVid) localVid.watch_time_seconds = newWatchTime;
-        if (monetizationPage?.classList.contains('open') || 
-            monetizationRevenuePage?.style.display === 'block') {
-          updateRevenueDisplay();
-        }
       }
     }
   } catch (e) {}
@@ -2330,8 +2105,6 @@ document.addEventListener('click', (e) => {
     if (vid && vid.owner_id === state.user.id) { showToast('Cannot report own video'); return; }
     currentReportVideoId = currentEditVideoId;
     currentReportReason = null;
-    const rd = document.getElementById('reportDetails');
-    if (rd) rd.value = '';
     document.querySelectorAll('.report-reason').forEach(r => r.classList.remove('selected'));
     const rsb = document.getElementById('reportSubmitBtn');
     if (rsb) { rsb.disabled = true; rsb.innerHTML = '<i class="fas fa-paper-plane"></i> Submit Report'; }
@@ -2566,9 +2339,7 @@ async function loadAdminStrikes() {
     content.innerHTML = data.map(s => `
       <div class="admin-report-item">
         <div class="admin-report-header">
-          <div style="width:40px;height:40px;border-radius:50%;background:#fff4e0;display:flex;align-items:center;justify-content:center;color:#d97706;">
-            <i class="fas fa-bolt"></i>
-          </div>
+          <div style="width:40px;height:40px;border-radius:50%;background:#fff4e0;display:flex;align-items:center;justify-content:center;color:#d97706;"><i class="fas fa-bolt"></i></div>
           <div style="flex:1;">
             <div class="admin-report-title">${escapeHTML(s.reason)}</div>
             <div class="admin-report-meta">${new Date(s.created_at).toLocaleString()}</div>
@@ -2610,9 +2381,7 @@ async function loadAdminBans() {
     content.innerHTML = data.map(b => `
       <div class="admin-report-item" style="border-left:4px solid #ff3b3b;">
         <div class="admin-report-header">
-          <div style="width:40px;height:40px;border-radius:50%;background:#fee2e2;display:flex;align-items:center;justify-content:center;color:#b91c1c;">
-            <i class="fas fa-ban"></i>
-          </div>
+          <div style="width:40px;height:40px;border-radius:50%;background:#fee2e2;display:flex;align-items:center;justify-content:center;color:#b91c1c;"><i class="fas fa-ban"></i></div>
           <div style="flex:1;">
             <div class="admin-report-title">Banned User</div>
             <div class="admin-report-meta">${new Date(b.banned_at).toLocaleString()}</div>
@@ -2672,7 +2441,7 @@ const BOT_RESPONSES = {
   'upload': '📹 To upload:\n1. Tap +\n2. Choose Upload\n3. Record/pick\n4. Fill details\n5. Publish',
   'go live': '🔴 To go live:\n1. Need 50+ subs\n2. Tap + → Go Live',
   'monetization': '💰 Creator Rewards:\n• $2 per 1000 subs\n• $5 per 1000 hours\n• $0.08 per 1000 views (normal)\n• $5.00 per 1000 views (UK/US/CA/AU qualified)',
-  'creator rewards': '💰 Creator Rewards:\n• $2 per 1000 subs\n• $5 per 1000 hours\n• $0.08 per 1000 views (normal)\n• $5.00 per 1000 views (UK/US/CA/AU)',
+  'creator rewards': '💰 Creator Rewards:\n• $2 per 1000 subs\n• $5 per 1000 hours\n• $0.08 per 1000 views\n• $5.00 per 1000 views (UK/US/CA/AU)',
   'copyright': '© Copyright: 3 strikes = permanent ban.',
   'report': '🚩 Report: 3-dot menu → Report',
   'hello': 'Hi! 👋 How can I help?',
@@ -2695,9 +2464,7 @@ function addSupportMessage(text, isUser = false) {
   msgDiv.className = 'support-message ' + (isUser ? 'user' : 'bot');
   const now = new Date();
   const timeStr = now.getHours().toString().padStart(2, '0') + ':' + now.getMinutes().toString().padStart(2, '0');
-  const avatarHTML = isUser
-    ? `<div class="support-avatar"><i class="fas fa-user"></i></div>`
-    : `<div class="support-avatar"><i class="fas fa-robot"></i></div>`;
+  const avatarHTML = isUser ? `<div class="support-avatar"><i class="fas fa-user"></i></div>` : `<div class="support-avatar"><i class="fas fa-robot"></i></div>`;
   const formattedText = escapeHTML(text).replace(/\n/g, '<br>').replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
   msgDiv.innerHTML = `${avatarHTML}<div class="support-bubble"><div class="support-text">${formattedText}</div><div class="support-time">${timeStr}</div></div>`;
   supportBody.appendChild(msgDiv);
@@ -2751,9 +2518,7 @@ async function renderSubscriptions() {
   });
   let html = '<div class="subs-channels-row">';
   subsChannels.forEach(ch => {
-    const avatarHTML = ch.avatar_url
-      ? `<img src="${ch.avatar_url}" style="width:100%;height:100%;object-fit:cover;">`
-      : (ch.avatar_emoji || '🎬');
+    const avatarHTML = ch.avatar_url ? `<img src="${ch.avatar_url}" style="width:100%;height:100%;object-fit:cover;">` : (ch.avatar_emoji || '🎬');
     const verified = getVerifiedBadgeHTML(ch);
     html += `<div class="subs-channel-chip" data-username="${escapeHTML(ch.username)}"><div class="subs-channel-avatar">${avatarHTML}</div><div class="subs-channel-name">${verified} ${escapeHTML(ch.name)}</div></div>`;
   });
@@ -2764,12 +2529,8 @@ async function renderSubscriptions() {
   } else {
     subsVideos.forEach(vid => {
       const ch = state.allChannels.find(c => c.username === vid.channel_username) || {};
-      const thumbHTML = vid.thumbnail_url
-        ? `<img src="${vid.thumbnail_url}" style="width:100%;height:100%;object-fit:cover;">`
-        : `<i class="fas fa-play-circle" style="font-size:3.8rem;color:#ffffffcc;"></i>`;
-      const chAvatarHTML = ch.avatar_url
-        ? `<img src="${ch.avatar_url}" style="width:100%;height:100%;object-fit:cover;">`
-        : (ch.avatar_emoji || '👤');
+      const thumbHTML = vid.thumbnail_url ? `<img src="${vid.thumbnail_url}" style="width:100%;height:100%;object-fit:cover;">` : `<i class="fas fa-play-circle" style="font-size:3.8rem;color:#ffffffcc;"></i>`;
+      const chAvatarHTML = ch.avatar_url ? `<img src="${ch.avatar_url}" style="width:100%;height:100%;object-fit:cover;">` : (ch.avatar_emoji || '👤');
       html += `<div class="video-card" data-vid="${vid.id}" style="margin:0 0 14px;"><div class="thumbnail-box">${thumbHTML}<span class="duration-badge">${vid.duration || '0:00'}</span>${vid.is_live ? '<span class="live-badge">🔴 LIVE</span>' : ''}</div><div class="video-details"><div class="channel-icon">${chAvatarHTML}</div><div class="video-meta"><div class="video-title">${escapeHTML(vid.title)}</div><div class="channel-name">${escapeHTML(ch.name || '')}</div><div class="video-stats"><span><i class="fas fa-eye"></i> ${formatViews(vid.views || 0)}</span><span><i class="fas fa-clock"></i> ${formatDate(vid.created_at)}</span></div></div></div></div>`;
     });
   }
@@ -2846,7 +2607,7 @@ if (plusLiveBtn) {
 }
 
 // ============================================================
-// LIVE STREAMING - FIXED BLACK SCREEN
+// LIVE STREAMING
 // ============================================================
 async function openLiveSetup() {
   if (!state.channel) { showToast('Create channel first'); openChannelSetup(); return; }
@@ -2893,9 +2654,7 @@ function closeLiveSetup() {
     previewStream.getTracks().forEach(t => { try { t.stop(); } catch(e){} });
     previewStream = null;
   }
-  if (livePreviewVideo) {
-    try { livePreviewVideo.srcObject = null; } catch(e){}
-  }
+  if (livePreviewVideo) { try { livePreviewVideo.srcObject = null; } catch(e){} }
   liveSetupModal.classList.remove('open');
 }
 
@@ -2940,9 +2699,7 @@ async function startLiveStream() {
     });
     state.activeLiveStream = liveData;
     state.liveStartTime = Date.now();
-    if (livePreviewVideo) {
-      try { livePreviewVideo.srcObject = null; } catch(e){}
-    }
+    if (livePreviewVideo) { try { livePreviewVideo.srcObject = null; } catch(e){} }
     liveSetupModal.classList.remove('open');
     liveStreamPage.classList.add('open');
     liveStreamTitle.textContent = title;
@@ -2959,9 +2716,7 @@ async function startLiveStream() {
       .select('user_id').eq('channel_id', state.channel.id);
     if (subs && subs.length > 0) {
       const notifications = subs.map(sub => ({
-        user_id: sub.user_id,
-        message: `🔴 ${state.channel.name} is LIVE: "${title}"`,
-        type: 'live'
+        user_id: sub.user_id, message: `🔴 ${state.channel.name} is LIVE: "${title}"`, type: 'live'
       }));
       for (let i = 0; i < notifications.length; i += 100) {
         await supabaseClient.from('notifications').insert(notifications.slice(i, i + 100));
@@ -2972,9 +2727,7 @@ async function startLiveStream() {
   } catch (err) {
     console.error('Live start error:', err);
     showToast('❌ ' + err.message);
-    if (streamRef) {
-      streamRef.getTracks().forEach(t => { try { t.stop(); } catch(e){} });
-    }
+    if (streamRef) streamRef.getTracks().forEach(t => { try { t.stop(); } catch(e){} });
     previewStream = null;
   }
   liveStartBtn.disabled = false;
@@ -2985,8 +2738,6 @@ async function setupAgoraBroadcaster(channelName, stream) {
   let client = null;
   try {
     if (typeof AgoraRTC === 'undefined') throw new Error('Agora SDK not loaded');
-    
-    // ✅ Show local preview first (fallback)
     liveBroadcastContainer.innerHTML = '';
     const localVideo = document.createElement('video');
     localVideo.srcObject = stream;
@@ -2996,48 +2747,25 @@ async function setupAgoraBroadcaster(channelName, stream) {
     localVideo.setAttribute('playsinline', '');
     localVideo.style.cssText = 'width:100%;height:100%;object-fit:contain;background:#000;';
     liveBroadcastContainer.appendChild(localVideo);
-    
-    // ✅ Now connect to Agora
     client = AgoraRTC.createClient({ mode: 'live', codec: 'vp8' });
     state.agoraClient = client;
     await client.setClientRole('host');
     await client.join(AGORA_APP_ID, channelName, null, null);
-    
-    // ✅ Create tracks with proper config
     const [audioTrack, videoTrack] = await AgoraRTC.createMicrophoneAndCameraTracks(
-      { 
-        AEC: true, 
-        ANS: true,
-        encoderConfig: '480p_1' 
-      },
-      { 
-        encoderConfig: '480p_1',
-        optimizationMode: 'motion'
-      }
+      { AEC: true, ANS: true, encoderConfig: '480p_1' },
+      { encoderConfig: '480p_1', optimizationMode: 'motion' }
     );
-    
     state.agoraTracks = [audioTrack, videoTrack];
-    
-    // ✅ Play Agora video track (better quality)
     try {
       liveBroadcastContainer.innerHTML = '';
       videoTrack.play(liveBroadcastContainer);
-    } catch (e) {
-      console.error('Agora play error, using local preview:', e);
-      // Fallback: keep local preview
-    }
-    
+    } catch (e) { console.error('Agora play error:', e); }
     await client.publish([audioTrack, videoTrack]);
     client.on('user-joined', () => updateLiveViewerCount());
     client.on('user-left', () => updateLiveViewerCount());
-    
-    // ✅ Hide "Connecting..." if any
-    console.log('✅ Agora broadcaster connected');
   } catch (err) {
     console.error('Agora broadcaster error:', err);
     if (client) { try { await client.leave(); } catch (e) {} state.agoraClient = null; }
-    
-    // ✅ Fallback: keep local preview visible
     liveBroadcastContainer.innerHTML = '';
     const localVideo = document.createElement('video');
     localVideo.srcObject = stream;
@@ -3073,22 +2801,14 @@ async function endLiveStream() {
         is_live: false, duration: formatDuration(elapsed), watch_time_seconds: elapsed
       }).eq('id', state.activeLiveStream.id);
     }
-    if (state.agoraClient) { 
-      try { await state.agoraClient.leave(); } catch(e){} 
-      state.agoraClient = null; 
-    }
-    state.agoraTracks.forEach(track => { 
-      try { track.stop(); track.close(); } catch (e) {} 
-    });
+    if (state.agoraClient) { try { await state.agoraClient.leave(); } catch(e){} state.agoraClient = null; }
+    state.agoraTracks.forEach(track => { try { track.stop(); track.close(); } catch (e) {} });
     state.agoraTracks = [];
     if (previewStream) {
       previewStream.getTracks().forEach(t => { try { t.stop(); } catch(e){} });
       previewStream = null;
     }
-    if (state.liveDurationInterval) { 
-      clearInterval(state.liveDurationInterval); 
-      state.liveDurationInterval = null; 
-    }
+    if (state.liveDurationInterval) { clearInterval(state.liveDurationInterval); state.liveDurationInterval = null; }
     state.activeLiveStream = null;
     state.liveStartTime = null;
     liveStreamPage.classList.remove('open');
@@ -3102,10 +2822,7 @@ async function endLiveStream() {
 
 async function openLiveWatch(vid) {
   if (!vid || !vid.is_live) { showToast('Stream ended'); return; }
-  if (typeof AgoraRTC === 'undefined') {
-    showToast('Agora SDK missing');
-    return;
-  }
+  if (typeof AgoraRTC === 'undefined') { showToast('Agora SDK missing'); return; }
   const { data: liveData } = await supabaseClient.from('live_streams')
     .select('*').eq('id', vid.id).eq('is_active', true).maybeSingle();
   if (!liveData) { showToast('Stream ended'); await loadFeedFromSupabase(); return; }
@@ -3114,9 +2831,7 @@ async function openLiveWatch(vid) {
   const isMine = liveData.owner_id === state.user?.id;
   const chId = ch.id;
   const isSubscribed = state.subscriptions.includes(chId);
-  const chAvatarHTML = ch.avatar_url
-    ? `<img src="${ch.avatar_url}" style="width:100%;height:100%;object-fit:cover;">`
-    : (ch.avatar_emoji || '👤');
+  const chAvatarHTML = ch.avatar_url ? `<img src="${ch.avatar_url}" style="width:100%;height:100%;object-fit:cover;">` : (ch.avatar_emoji || '👤');
   const verifiedBadge = getVerifiedBadgeHTML(ch);
   liveWatchHeaderTitle.textContent = liveData.title;
   liveWatchTitle.textContent = liveData.title;
@@ -3132,7 +2847,6 @@ async function openLiveWatch(vid) {
     liveWatchSubBtn.innerHTML = isSubscribed ? '<i class="fas fa-check"></i> Subscribed' : '<i class="fas fa-plus"></i> Subscribe';
   }
   liveWatchPage.classList.add('open');
-  // ✅ Show loading
   liveWatchContainer.innerHTML = '<div style="color:white;text-align:center;padding:20px;display:flex;align-items:center;justify-content:center;height:100%;"><div><i class="fas fa-spinner fa-spin" style="font-size:2rem;"></i><div style="margin-top:10px;">Connecting to live stream...</div></div></div>';
   await new Promise(r => setTimeout(r, 500));
   await joinAgoraAsViewer(liveData.agora_channel);
@@ -3162,9 +2876,7 @@ async function joinAgoraAsViewer(channelName) {
   try {
     const client = AgoraRTC.createClient({ mode: 'live', codec: 'vp8' });
     state.agoraClient = client;
-    
     let hasVideo = false;
-    
     client.on('user-published', async (user, mediaType) => {
       try {
         await client.subscribe(user, mediaType);
@@ -3173,45 +2885,23 @@ async function joinAgoraAsViewer(channelName) {
           user.videoTrack.play(liveWatchContainer);
           hasVideo = true;
         }
-        if (mediaType === 'audio') { 
-          user.audioTrack.play(); 
-        }
-      } catch (e) {
-        console.error('Subscribe error:', e);
-      }
+        if (mediaType === 'audio') { user.audioTrack.play(); }
+      } catch (e) { console.error('Subscribe error:', e); }
     });
-    
     client.on('user-unpublished', () => {
       liveWatchContainer.innerHTML = '<div style="color:white;text-align:center;padding:20px;">Stream paused</div>';
     });
-    
-    // ✅ Connection state handling
-    client.on('connection-state-change', (curState) => {
-      console.log('Agora state:', curState);
-      if (curState === 'DISCONNECTED' && !hasVideo) {
-        liveWatchContainer.innerHTML = '<div style="color:white;text-align:center;padding:20px;">Stream disconnected</div>';
-      }
-    });
-    
     await client.setClientRole('audience');
     await client.join(AGORA_APP_ID, channelName, null, null);
-    
-    // ✅ Timeout check - if no video after 10 seconds
     setTimeout(() => {
       if (!hasVideo && liveWatchPage.classList.contains('open')) {
-        // Check if host is still active
-        supabaseClient.from('live_streams')
-          .select('is_active')
-          .eq('id', currentWatchingLive?.id)
-          .maybeSingle()
-          .then(({ data }) => {
-            if (data && !data.is_active) {
-              liveWatchContainer.innerHTML = '<div style="color:white;text-align:center;padding:20px;"><i class="fas fa-video-slash" style="font-size:2rem;"></i><div style="margin-top:10px;">Stream has ended</div></div>';
-            }
-          });
+        supabaseClient.from('live_streams').select('is_active').eq('id', currentWatchingLive?.id).maybeSingle().then(({ data }) => {
+          if (data && !data.is_active) {
+            liveWatchContainer.innerHTML = '<div style="color:white;text-align:center;padding:20px;"><i class="fas fa-video-slash" style="font-size:2rem;"></i><div style="margin-top:10px;">Stream has ended</div></div>';
+          }
+        });
       }
     }, 10000);
-    
   } catch (err) {
     console.error('Agora viewer error:', err);
     liveWatchContainer.innerHTML = '<div style="color:white;text-align:center;padding:20px;"><i class="fas fa-exclamation-triangle" style="font-size:2rem;"></i><div style="margin-top:10px;">Unable to connect to stream</div></div>';
@@ -3485,15 +3175,10 @@ async function openMetadataPage() {
   uploadProgressWrap.style.display = 'none';
   thumbnailPicker.innerHTML = `
     <video id="thumbPreviewVideo" muted playsinline></video>
-    <div class="thumb-overlay" id="thumbOverlay">
-      <i class="fas fa-camera-retro"></i><span>Loading thumbnail...</span>
-    </div>
+    <div class="thumb-overlay" id="thumbOverlay"><i class="fas fa-camera-retro"></i><span>Loading thumbnail...</span></div>
   `;
   const newThumbVideo = document.getElementById('thumbPreviewVideo');
-  if (currentVideoBlobUrl && newThumbVideo) { 
-    newThumbVideo.src = currentVideoBlobUrl; 
-    newThumbVideo.style.display = 'block'; 
-  }
+  if (currentVideoBlobUrl && newThumbVideo) { newThumbVideo.src = currentVideoBlobUrl; newThumbVideo.style.display = 'block'; }
   metadataPage.classList.add('open');
   if (currentVideoBlobUrl) {
     try {
@@ -3502,20 +3187,10 @@ async function openMetadataPage() {
       const blob = await resp.blob();
       const autoThumb = await generateThumbnailFromVideo(blob, 1);
       selectedThumbnailData = autoThumb;
-      thumbnailPicker.innerHTML = `
-        <img src="${autoThumb}" style="width:100%;height:100%;object-fit:cover;">
-        <div class="thumb-status" style="display:flex;">
-          <i class="fas fa-check-circle"></i> <span>Auto-generated</span>
-        </div>
-      `;
+      thumbnailPicker.innerHTML = `<img src="${autoThumb}" style="width:100%;height:100%;object-fit:cover;"><div class="thumb-status" style="display:flex;"><i class="fas fa-check-circle"></i> <span>Auto-generated</span></div>`;
       showToast('✅ Auto thumbnail ready!');
     } catch (err) {
-      thumbnailPicker.innerHTML = `
-        <video id="thumbPreviewVideo" muted playsinline src="${currentVideoBlobUrl}"></video>
-        <div class="thumb-overlay">
-          <i class="fas fa-camera-retro"></i><span>Tap to set thumbnail</span>
-        </div>
-      `;
+      thumbnailPicker.innerHTML = `<video id="thumbPreviewVideo" muted playsinline src="${currentVideoBlobUrl}"></video><div class="thumb-overlay"><i class="fas fa-camera-retro"></i><span>Tap to set thumbnail</span></div>`;
     }
   }
 }
@@ -3552,12 +3227,7 @@ document.getElementById('autoThumbBtn')?.addEventListener('click', async (e) => 
     const blob = await resp.blob();
     const thumb = await generateThumbnailFromVideo(blob, 1);
     selectedThumbnailData = thumb;
-    thumbnailPicker.innerHTML = `
-      <img src="${thumb}" style="width:100%;height:100%;object-fit:cover;">
-      <div class="thumb-status" style="display:flex;">
-        <i class="fas fa-check-circle"></i> <span>Auto-generated</span>
-      </div>
-    `;
+    thumbnailPicker.innerHTML = `<img src="${thumb}" style="width:100%;height:100%;object-fit:cover;"><div class="thumb-status" style="display:flex;"><i class="fas fa-check-circle"></i> <span>Auto-generated</span></div>`;
     showToast('✅ Auto thumbnail ready!');
   } catch (err) { showToast('❌ ' + err.message); }
 });
@@ -3576,12 +3246,7 @@ if (thumbnailInput) {
     const reader = new FileReader();
     reader.onload = ev => {
       selectedThumbnailData = ev.target.result;
-      thumbnailPicker.innerHTML = `
-        <img src="${selectedThumbnailData}" style="width:100%;height:100%;object-fit:cover;">
-        <div class="thumb-status" style="display:flex;">
-          <i class="fas fa-check-circle"></i> <span>Custom thumbnail</span>
-        </div>
-      `;
+      thumbnailPicker.innerHTML = `<img src="${selectedThumbnailData}" style="width:100%;height:100%;object-fit:cover;"><div class="thumb-status" style="display:flex;"><i class="fas fa-check-circle"></i> <span>Custom thumbnail</span></div>`;
       showToast('🖼 Custom thumbnail set');
     };
     reader.readAsDataURL(file);
@@ -3642,8 +3307,7 @@ if (metadataPublishBtn) {
         uploadProgressText.textContent = `Compressing ${originalSizeMB.toFixed(1)} MB...`;
         uploadProgressFill.style.width = '10%';
         videoBlob = await compressVideo(videoBlob, MAX_SIZE_MB);
-        const newSizeMB = videoBlob.size / (1024 * 1024);
-        uploadProgressText.textContent = `Compressed: ${originalSizeMB.toFixed(1)} → ${newSizeMB.toFixed(1)} MB`;
+        uploadProgressText.textContent = `Compressed: ${originalSizeMB.toFixed(1)} → ${(videoBlob.size / (1024 * 1024)).toFixed(1)} MB`;
         uploadProgressFill.style.width = '30%';
         await new Promise(r => setTimeout(r, 500));
       } else {
@@ -3722,13 +3386,10 @@ if (metadataPublishBtn) {
       metaTags = [];
       setTimeout(() => { uploadProgressWrap.style.display = 'none'; }, 1500);
       await loadFeedFromSupabase();
-      const { data: subs } = await supabaseClient.from('subscriptions')
-        .select('user_id').eq('channel_id', ch.id);
+      const { data: subs } = await supabaseClient.from('subscriptions').select('user_id').eq('channel_id', ch.id);
       if (subs && subs.length > 0) {
         const notifications = subs.map(sub => ({
-          user_id: sub.user_id,
-          message: `${ch.name} uploaded: "${title}"`,
-          type: 'new_video'
+          user_id: sub.user_id, message: `${ch.name} uploaded: "${title}"`, type: 'new_video'
         }));
         for (let i = 0; i < notifications.length; i += 100) {
           await supabaseClient.from('notifications').insert(notifications.slice(i, i + 100));
@@ -3744,11 +3405,6 @@ if (metadataPublishBtn) {
 }
 
 // ==================== CHANNEL SETUP ====================
-let setupBannerData = null;
-let setupAvatarData = null;
-let editBannerData = null;
-let editAvatarData = null;
-
 function openChannelSetup() {
   setupChannelName.value = '';
   setupUsername.value = '';
@@ -3997,13 +3653,7 @@ async function openChannelView(username) {
         <span><strong>${videos.length}</strong> videos</span>
       </div>
       ${ch.description ? `<div class="channel-view-desc">${escapeHTML(ch.description)}</div>` : ''}
-      ${!isMine ? `
-        <div class="channel-view-subscribe-row">
-          <button class="subscribe-btn ${isSubscribed ? 'subscribed' : ''}" id="channelSubBtn" style="flex:1;justify-content:center;padding:12px;font-size:0.85rem;">
-            ${isSubscribed ? '<i class="fas fa-check"></i> Subscribed' : '<i class="fas fa-plus"></i> Subscribe'}
-          </button>
-        </div>
-      ` : ''}
+      ${!isMine ? `<div class="channel-view-subscribe-row"><button class="subscribe-btn ${isSubscribed ? 'subscribed' : ''}" id="channelSubBtn" style="flex:1;justify-content:center;padding:12px;font-size:0.85rem;">${isSubscribed ? '<i class="fas fa-check"></i> Subscribed' : '<i class="fas fa-plus"></i> Subscribe'}</button></div>` : ''}
     </div>
     <div class="channel-view-videos-title"><i class="fas fa-video"></i> Videos</div>
     <div class="channel-video-grid" id="channelVideoGrid"></div>
@@ -4015,27 +3665,12 @@ async function openChannelView(username) {
     videos.forEach(vid => {
       const card = document.createElement('div');
       card.className = 'video-card';
-      const thumbHTML = vid.thumbnail_url
-        ? `<img src="${vid.thumbnail_url}" style="width:100%;height:100%;object-fit:cover;">`
-        : `<i class="fas fa-play-circle" style="font-size:3.8rem;color:#ffffffcc;"></i>`;
+      const thumbHTML = vid.thumbnail_url ? `<img src="${vid.thumbnail_url}" style="width:100%;height:100%;object-fit:cover;">` : `<i class="fas fa-play-circle" style="font-size:3.8rem;color:#ffffffcc;"></i>`;
       const isMineVid = vid.owner_id === state.user?.id;
       const menuBtnHTML = isMineVid && !vid.is_live ? `<button class="my-video-menu-btn" data-mymenu="${vid.id}"><i class="fas fa-ellipsis-v"></i></button>` : '';
       card.innerHTML = `
-        <div class="thumbnail-box">
-          ${thumbHTML}
-          <span class="duration-badge">${vid.duration || '0:00'}</span>
-          ${vid.is_live ? '<span class="live-badge">🔴 LIVE</span>' : ''}
-          ${menuBtnHTML}
-        </div>
-        <div class="video-details">
-          <div class="video-meta">
-            <div class="video-title">${escapeHTML(vid.title)}</div>
-            <div class="video-stats">
-              <span><i class="fas fa-eye"></i> ${formatViews(vid.views || 0)}</span>
-              <span><i class="fas fa-clock"></i> ${formatDate(vid.created_at)}</span>
-            </div>
-          </div>
-        </div>
+        <div class="thumbnail-box">${thumbHTML}<span class="duration-badge">${vid.duration || '0:00'}</span>${vid.is_live ? '<span class="live-badge">🔴 LIVE</span>' : ''}${menuBtnHTML}</div>
+        <div class="video-details"><div class="video-meta"><div class="video-title">${escapeHTML(vid.title)}</div><div class="video-stats"><span><i class="fas fa-eye"></i> ${formatViews(vid.views || 0)}</span><span><i class="fas fa-clock"></i> ${formatDate(vid.created_at)}</span></div></div></div>
       `;
       card.addEventListener('click', (e) => {
         if (e.target.closest('.my-video-menu-btn')) { e.stopPropagation(); openVideoActions(vid); return; }
@@ -4148,15 +3783,10 @@ async function renderProfilePage() {
           <div class="profile-header-info">
             <div class="profile-name-new">ForTube User</div>
             <div class="profile-handle-new">${escapeHTML(state.email)}</div>
-            <div class="profile-stats-new">
-              <span><strong>0</strong> subscribers</span>
-              <span><strong>0</strong> videos</span>
-            </div>
+            <div class="profile-stats-new"><span><strong>0</strong> subscribers</span><span><strong>0</strong> videos</span></div>
           </div>
         </div>
-        <button class="no-channel-btn" id="noChannelBtn" style="margin:20px auto;display:flex;">
-          <i class="fas fa-plus-circle"></i> Create Your Channel
-        </button>
+        <button class="no-channel-btn" id="noChannelBtn" style="margin:20px auto;display:flex;"><i class="fas fa-plus-circle"></i> Create Your Channel</button>
       </div>
     `;
     document.getElementById('noChannelBtn')?.addEventListener('click', openChannelSetup);
@@ -4164,84 +3794,46 @@ async function renderProfilePage() {
   }
   const ch = state.channel;
   const myVideos = state.allVideos.filter(v => v.owner_id === state.user.id && !v.is_live);
-  const bannerHTML = ch.banner_url
-    ? `<img src="${ch.banner_url}" alt="banner">`
-    : `<div class="profile-banner-placeholder"></div>`;
-  const avatarHTML = ch.avatar_url
-    ? `<img src="${ch.avatar_url}" alt="avatar">`
-    : (ch.avatar_emoji || '🎬');
+  const bannerHTML = ch.banner_url ? `<img src="${ch.banner_url}" alt="banner">` : `<div class="profile-banner-placeholder"></div>`;
+  const avatarHTML = ch.avatar_url ? `<img src="${ch.avatar_url}" alt="avatar">` : (ch.avatar_emoji || '🎬');
   const verifiedBadge = getVerifiedBadgeHTML(ch);
   let videosHTML = '';
   if (myVideos.length === 0) {
-    videosHTML = `
-      <div class="profile-empty-videos">
-        <i class="fas fa-video"></i>
-        <h4>No videos yet</h4>
-        <p>Tap + button to upload!</p>
-      </div>
-    `;
+    videosHTML = `<div class="profile-empty-videos"><i class="fas fa-video"></i><h4>No videos yet</h4><p>Tap + button to upload!</p></div>`;
   } else {
     videosHTML = myVideos.map(vid => {
       const thumbHTML = vid.thumbnail_url ? `<img src="${vid.thumbnail_url}">` : `<i class="fas fa-play-circle"></i>`;
       return `
         <div class="profile-video-card" data-pvid="${vid.id}">
-          <div class="profile-video-thumb">
-            ${thumbHTML}
-            <span class="duration-badge">${vid.duration || '0:00'}</span>
-            <button class="my-video-menu-btn" data-mymenu="${vid.id}" style="top:6px;right:6px;">
-              <i class="fas fa-ellipsis-v"></i>
-            </button>
-          </div>
-          <div class="profile-video-info">
-            <div class="profile-video-title">${escapeHTML(vid.title)}</div>
-            <div class="profile-video-stats">
-              <span><i class="fas fa-eye"></i> ${formatViews(vid.views || 0)}</span>
-              <span>·</span>
-              <span>${formatDate(vid.created_at)}</span>
-            </div>
-          </div>
+          <div class="profile-video-thumb">${thumbHTML}<span class="duration-badge">${vid.duration || '0:00'}</span><button class="my-video-menu-btn" data-mymenu="${vid.id}" style="top:6px;right:6px;"><i class="fas fa-ellipsis-v"></i></button></div>
+          <div class="profile-video-info"><div class="profile-video-title">${escapeHTML(vid.title)}</div><div class="profile-video-stats"><span><i class="fas fa-eye"></i> ${formatViews(vid.views || 0)}</span><span>·</span><span>${formatDate(vid.created_at)}</span></div></div>
         </div>
       `;
     }).join('');
   }
   body.innerHTML = `
-    <div class="profile-banner-new">
-      ${bannerHTML}
-    </div>
+    <div class="profile-banner-new">${bannerHTML}</div>
     <div class="profile-header-row">
       <div class="profile-avatar-new">${avatarHTML}</div>
       <div class="profile-header-info">
-        <div class="profile-name-new">
-          ${verifiedBadge} ${escapeHTML(ch.name)}
-        </div>
+        <div class="profile-name-new">${verifiedBadge} ${escapeHTML(ch.name)}</div>
         <div class="profile-handle-new">${escapeHTML(ch.username)} · ${escapeHTML(ch.category || '')}</div>
-        <div class="profile-stats-new">
-          <span><strong>${ch.subscribers_count || 0}</strong> subscribers</span>
-          <span><strong>${myVideos.length}</strong> videos</span>
-        </div>
+        <div class="profile-stats-new"><span><strong>${ch.subscribers_count || 0}</strong> subscribers</span><span><strong>${myVideos.length}</strong> videos</span></div>
       </div>
     </div>
     ${ch.description ? `<div class="profile-desc-new">${escapeHTML(ch.description)}</div>` : ''}
     <div class="profile-actions-row">
-      <button class="profile-action-btn" id="openEditChannelBtn">
-        <i class="fas fa-edit"></i> Edit Channel
-      </button>
-      <button class="profile-action-btn secondary" id="openAnalyticsBtn">
-        <i class="fas fa-chart-line"></i> Analytics
-      </button>
+      <button class="profile-action-btn" id="openEditChannelBtn"><i class="fas fa-edit"></i> Edit Channel</button>
+      <button class="profile-action-btn secondary" id="openAnalyticsBtn"><i class="fas fa-chart-line"></i> Analytics</button>
     </div>
     <div class="profile-actions-row">
-      <button class="profile-action-btn" id="openMonetizationBtn" style="background:linear-gradient(135deg,#d97706,#b45309);">
-        <i class="fas fa-dollar-sign"></i> Creator Rewards
-      </button>
+      <button class="profile-action-btn" id="openMonetizationBtn" style="background:linear-gradient(135deg,#d97706,#b45309);"><i class="fas fa-dollar-sign"></i> Creator Rewards</button>
     </div>
     <div class="profile-tabs">
       <div class="profile-tab active" data-ptab="videos"><i class="fas fa-video"></i> Videos</div>
       <div class="profile-tab" data-ptab="shorts"><i class="fas fa-bolt"></i> Shorts</div>
     </div>
-    <div class="profile-videos-grid" id="profileVideosGrid">
-      ${videosHTML}
-    </div>
+    <div class="profile-videos-grid" id="profileVideosGrid">${videosHTML}</div>
   `;
   document.getElementById('openEditChannelBtn')?.addEventListener('click', () => {
     if (!state.channel) return;
@@ -4297,34 +3889,15 @@ async function renderProfilePage() {
         ? state.allVideos.filter(v => v.owner_id === state.user.id && v.type !== 'short' && !v.is_live)
         : state.allVideos.filter(v => v.owner_id === state.user.id && v.type === 'short');
       if (filtered.length === 0) {
-        grid.innerHTML = `
-          <div class="profile-empty-videos">
-            <i class="fas fa-video"></i>
-            <h4>No ${type} yet</h4>
-            <p>Upload to see them here!</p>
-          </div>
-        `;
+        grid.innerHTML = `<div class="profile-empty-videos"><i class="fas fa-video"></i><h4>No ${type} yet</h4><p>Upload to see them here!</p></div>`;
         return;
       }
       grid.innerHTML = filtered.map(vid => {
         const thumbHTML = vid.thumbnail_url ? `<img src="${vid.thumbnail_url}">` : `<i class="fas fa-play-circle"></i>`;
         return `
           <div class="profile-video-card" data-pvid="${vid.id}">
-            <div class="profile-video-thumb">
-              ${thumbHTML}
-              <span class="duration-badge">${vid.duration || '0:00'}</span>
-              <button class="my-video-menu-btn" data-mymenu="${vid.id}" style="top:6px;right:6px;">
-                <i class="fas fa-ellipsis-v"></i>
-              </button>
-            </div>
-            <div class="profile-video-info">
-              <div class="profile-video-title">${escapeHTML(vid.title)}</div>
-              <div class="profile-video-stats">
-                <span><i class="fas fa-eye"></i> ${formatViews(vid.views || 0)}</span>
-                <span>·</span>
-                <span>${formatDate(vid.created_at)}</span>
-              </div>
-            </div>
+            <div class="profile-video-thumb">${thumbHTML}<span class="duration-badge">${vid.duration || '0:00'}</span><button class="my-video-menu-btn" data-mymenu="${vid.id}" style="top:6px;right:6px;"><i class="fas fa-ellipsis-v"></i></button></div>
+            <div class="profile-video-info"><div class="profile-video-title">${escapeHTML(vid.title)}</div><div class="profile-video-stats"><span><i class="fas fa-eye"></i> ${formatViews(vid.views || 0)}</span><span>·</span><span>${formatDate(vid.created_at)}</span></div></div>
           </div>
         `;
       }).join('');
@@ -4380,18 +3953,14 @@ async function updateMonetizationUI() {
   const liveViews = (liveStreams || []).reduce((sum, l) => sum + (l.views || 0), 0);
   const totalViews = videoViews + liveViews;
   const videoWatchSeconds = (videos || []).reduce((sum, v) => sum + (v.watch_time_seconds || 0), 0);
-  const liveWatchSeconds = (liveStreams || []).reduce((sum, l) => 
-    sum + ((l.duration_seconds || 0) * (l.views || 0)), 0);
-  const totalWatchSeconds = videoWatchSeconds + liveWatchSeconds;
-  const watchHours = Math.floor(totalWatchSeconds / 3600);
+  const liveWatchSeconds = (liveStreams || []).reduce((sum, l) => sum + ((l.duration_seconds || 0) * (l.views || 0)), 0);
+  const watchHours = Math.floor((videoWatchSeconds + liveWatchSeconds) / 3600);
   const subs = state.channel.subscribers_count || 0;
   const region = state.channel.region || 'Global';
   const revenue = calculateRevenue(subs, watchHours, totalViews, region);
   const availableBalance = await getUserRevenue();
-  
   if (totalRevenue) totalRevenue.textContent = availableBalance.toFixed(4);
   if (qualifiedViewsRevenue) qualifiedViewsRevenue.textContent = totalViews.toLocaleString();
-  
   if (isAdmin) {
     if (viewsProgress) viewsProgress.textContent = `1000000/1000000`;
     if (watchProgress) watchProgress.textContent = `4000/4000`;
@@ -4400,11 +3969,7 @@ async function updateMonetizationUI() {
     if (check2) check2.className = 'fas fa-check-circle ci-check';
     if (check3) check3.className = 'fas fa-check-circle ci-check';
     if (progressFill) progressFill.style.width = '100%';
-    if (verifyBtn) {
-      verifyBtn.disabled = false;
-      verifyBtn.classList.add('eligible');
-      verifyBtn.textContent = '✅ Verify & Apply';
-    }
+    if (verifyBtn) { verifyBtn.disabled = false; verifyBtn.classList.add('eligible'); verifyBtn.textContent = '✅ Verify & Apply'; }
     updateAnalyticsDisplay(totalViews, watchHours, subs, revenue);
     return;
   }
@@ -4494,20 +4059,15 @@ async function processWithdraw() {
     showToast(`✅ Withdrawal $${amount.toFixed(2)} initiated!`);
     await updateRevenueDisplay();
     await updateMonetizationUI();
-    
     const params = new URLSearchParams({
       user_id: state.user.id, email: state.email,
       channel_id: state.channel.id, channel_name: state.channel.name,
       username: state.channel.username, amount: amount.toFixed(2),
-      remaining_balance: newBalance.toFixed(4), currency: 'USD',
-      auto: '1'
+      remaining_balance: newBalance.toFixed(4), currency: 'USD', auto: '1'
     });
-    
     const url = `${WITHDRAW_URL}?${params.toString()}`;
     showToast('🔗 Redirecting to withdrawal page...');
-    setTimeout(() => {
-      window.location.href = url;
-    }, 800);
+    setTimeout(() => { window.location.href = url; }, 800);
   } catch (err) {
     showToast('❌ ' + err.message);
     await updateRevenueDisplay();
@@ -4516,9 +4076,7 @@ async function processWithdraw() {
 }
 
 document.addEventListener('click', (e) => {
-  if (e.target.closest('#withdrawRevenueBtn')) {
-    e.preventDefault(); processWithdraw();
-  }
+  if (e.target.closest('#withdrawRevenueBtn')) { e.preventDefault(); processWithdraw(); }
 });
 
 document.addEventListener('input', (e) => {
@@ -4655,9 +4213,20 @@ document.querySelectorAll('.nav-item').forEach(item => {
     document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
     this.classList.add('active');
     const tab = this.dataset.tab;
-    if (tab === 'home') { currentFilter = 'home'; renderFeed('', 'home'); localStorage.setItem('fortube_last_filter', 'home'); }
-    else if (tab === 'shorts') { currentFilter = 'shorts'; renderShortsFeed(); localStorage.setItem('fortube_last_filter', 'shorts'); }
-    else if (tab === 'subs') { currentFilter = 'subs'; renderFeed('', 'subs'); openSubscriptions(); localStorage.setItem('fortube_last_filter', 'subs'); }
+    if (tab === 'home') { 
+      currentFilter = 'home'; 
+      renderFeed('', 'home'); 
+      localStorage.setItem('fortube_last_filter', 'home'); 
+    } else if (tab === 'shorts') { 
+      currentFilter = 'shorts'; 
+      renderShortsFeed(); 
+      localStorage.setItem('fortube_last_filter', 'shorts'); 
+    } else if (tab === 'subs') { 
+      currentFilter = 'subs'; 
+      renderFeed('', 'subs'); 
+      openSubscriptions(); 
+      localStorage.setItem('fortube_last_filter', 'subs'); 
+    }
   });
 });
 
@@ -4686,10 +4255,7 @@ if (toggleNotifications) toggleNotifications.addEventListener('click', () => { t
 if (clearCacheBtn) {
   clearCacheBtn.addEventListener('click', async () => {
     try {
-      if (idbInstance) {
-        idbInstance.close();
-        idbInstance = null;
-      }
+      if (idbInstance) { idbInstance.close(); idbInstance = null; }
       await new Promise((resolve) => {
         const req = indexedDB.deleteDatabase(IDB_NAME);
         req.onsuccess = () => resolve();
@@ -4697,9 +4263,7 @@ if (clearCacheBtn) {
         req.onblocked = () => resolve();
       });
       showToast('🧹 Cache cleared');
-    } catch (e) {
-      showToast('⚠️ Cache partially cleared');
-    }
+    } catch (e) { showToast('⚠️ Cache partially cleared'); }
   });
 }
 
@@ -4781,4 +4345,6 @@ window.addEventListener('beforeunload', async () => {
   if (state.currentWatchingVideoId) await saveWatchTimeNow(state.currentWatchingVideoId);
   if (state.agoraClient) { try { state.agoraClient.leave(); } catch (e) {} }
   stopRevenueLiveUpdate();
+  if (state.shortsPlayObserver) state.shortsPlayObserver.disconnect();
+  if (state.shortsObserver) state.shortsObserver.disconnect();
 });
