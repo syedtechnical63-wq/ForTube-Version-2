@@ -1,5 +1,5 @@
 /* ============================================================
-   FORTUBE v29 - ABSOLUTE FINAL (Shorts Fixed 100%)
+   FORTUBE v31 - ABSOLUTE FINAL (Sab Critical Issues Fixed)
    ============================================================ */
 
 if (typeof supabase === 'undefined') {
@@ -121,6 +121,7 @@ const state = {
   shortsUnmuted: false,
   shortsObserver: null,
   shortsPlayObserver: null,
+  shortsHandlers: [],
   preferences: {
     language: 'English',
     region: 'Global',
@@ -373,7 +374,10 @@ function showToast(msg) {
 }
 
 function escapeHTML(str) {
-  return String(str).replace(/[&<>"]/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[m]));
+  if (str == null) return '';
+  return String(str).replace(/[&<>"']/g, m => ({
+    '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'
+  }[m]));
 }
 
 function formatTime(sec) {
@@ -439,6 +443,14 @@ function isPremiumRegion(region) {
   if (!region) return false;
   const r = String(region).toLowerCase().trim();
   return PREMIUM_REGIONS.some(prem => r.includes(prem.toLowerCase()));
+}
+
+function parseTags(tags) {
+  if (Array.isArray(tags)) return tags;
+  if (typeof tags === 'string') {
+    try { const p = JSON.parse(tags); return Array.isArray(p) ? p : []; } catch(e) { return []; }
+  }
+  return [];
 }
 
 // ============================================================
@@ -938,7 +950,14 @@ function saveCurrentPageState() {
     }
     localStorage.setItem('fortube_page_state', JSON.stringify(stateData));
     localStorage.setItem('fortube_last_filter', currentFilter);
-  } catch (e) {}
+  } catch (e) {
+    if (e.name === 'QuotaExceededError') {
+      try {
+        localStorage.removeItem('fortube_page_state');
+        localStorage.setItem('fortube_last_filter', currentFilter);
+      } catch (e2) {}
+    }
+  }
 }
 
 async function restorePageState() {
@@ -1119,9 +1138,11 @@ if (logoutBtn) {
     state.subscriptions = [];
     state.shortsViewTracker.clear();
     state.shortsUnmuted = false;
+    state.currentVisibleShortId = null;
     stopRevenueLiveUpdate();
     if (state.shortsPlayObserver) { state.shortsPlayObserver.disconnect(); state.shortsPlayObserver = null; }
     if (state.shortsObserver) { state.shortsObserver.disconnect(); state.shortsObserver = null; }
+    state.shortsHandlers = [];
     try {
       localStorage.removeItem('fortube_page_state');
       localStorage.removeItem('fortube_last_filter');
@@ -1163,10 +1184,11 @@ function matchVideoSearch(v, query) {
   const channelMatch = v.channel_name && v.channel_name.toLowerCase().includes(q);
   const categoryMatch = v.category && v.category.toLowerCase().includes(q);
   let tagsMatch = false;
-  if (v.tags && Array.isArray(v.tags)) {
-    const directTagMatch = v.tags.some(t => t && t.toLowerCase().includes(q));
+  const tagsArr = parseTags(v.tags);
+  if (tagsArr.length > 0) {
+    const directTagMatch = tagsArr.some(t => t && t.toLowerCase().includes(q));
     const wordMatch = searchWords.length > 0 && searchWords.every(word =>
-      v.tags.some(t => t && t.toLowerCase().includes(word)) ||
+      tagsArr.some(t => t && t.toLowerCase().includes(word)) ||
       (v.title && v.title.toLowerCase().includes(word))
     );
     tagsMatch = directTagMatch || wordMatch;
@@ -1268,14 +1290,20 @@ function renderFeed(filterText = '', categoryFilter = null) {
 }
 
 // ============================================================
-// 🎵 SHORTS FEED - ABSOLUTE FINAL FIX
+// 🎵 SHORTS FEED - FINAL FIXED
 // ============================================================
 function renderShortsFeed() {
   if (!shortsFeed) return;
   
-  // ✅ CLEANUP: Destroy old observers first
+  // ✅ CLEANUP: Destroy old observers and handlers first
   if (state.shortsPlayObserver) { state.shortsPlayObserver.disconnect(); state.shortsPlayObserver = null; }
   if (state.shortsObserver) { state.shortsObserver.disconnect(); state.shortsObserver = null; }
+  state.shortsHandlers.forEach(({ el, type, fn }) => {
+    try { 
+      if (el && el.removeEventListener) el.removeEventListener(type, fn); 
+    } catch(e) {}
+  });
+  state.shortsHandlers = [];
   
   if (feed) feed.style.display = 'none';
   shortsFeed.style.display = 'block';
@@ -1306,8 +1334,6 @@ function renderShortsFeed() {
       : (ch.avatar_emoji || '👤');
     const verifiedBadge = getVerifiedBadgeHTML(ch);
     
-    // ✅ CRITICAL: NO `loop` attribute! Use `data-loop` and handle in JS
-    // ✅ CRITICAL: muted attribute HARDCODED for autoplay
     const videoHTML = vid.video_url 
       ? `<video class="short-video" src="${vid.video_url}" muted playsinline preload="auto" poster="${vid.thumbnail_url || ''}" webkit-playsinline x5-playsinline x5-video-player-type="h5" x5-video-player-fullscreen="false" disablepictureinpicture onerror="this.style.display='none';this.nextElementSibling.style.display='flex';"></video>
          <div class="short-video-placeholder" style="display:none;"><i class="fas fa-play-circle"></i></div>`
@@ -1345,11 +1371,18 @@ function renderShortsFeed() {
   html += '</div>';
   shortsFeed.innerHTML = html;
   
+  // ✅ Setup observers and video properties
   setupShortsAll();
   
-  // ✅ Like button
+  // ✅ CRITICAL FIX: Define addHandler BEFORE using it
+  const addHandler = (el, type, fn) => {
+    el.addEventListener(type, fn);
+    state.shortsHandlers.push({ el, type, fn });
+  };
+  
+  // Like button
   shortsFeed.querySelectorAll('[data-like]').forEach(btn => {
-    btn.addEventListener('click', async (e) => {
+    addHandler(btn, 'click', async (e) => {
       e.stopPropagation();
       const vidId = btn.dataset.like;
       const vid = state.allVideos.find(v => v.id === vidId);
@@ -1363,23 +1396,23 @@ function renderShortsFeed() {
     });
   });
   
-  // ✅ Comment button
+  // Comment button
   shortsFeed.querySelectorAll('[data-comment]').forEach(btn => {
-    btn.addEventListener('click', (e) => {
+    addHandler(btn, 'click', (e) => {
       e.stopPropagation();
       const vid = state.allVideos.find(v => v.id === btn.dataset.comment);
       if (vid) openWatchPage(vid);
     });
   });
   
-  // ✅ Share button
+  // Share button
   shortsFeed.querySelectorAll('[data-share]').forEach(btn => {
-    btn.addEventListener('click', (e) => {
+    addHandler(btn, 'click', (e) => {
       e.stopPropagation();
       const vid = state.allVideos.find(v => v.id === btn.dataset.share);
       if (vid) {
         const url = vid.video_url || window.location.href;
-        if (navigator.share) {
+        if (navigator.share && window.isSecureContext) {
           navigator.share({ title: vid.title, url: url }).catch(() => {
             navigator.clipboard.writeText(url).then(() => showToast('🔗 Link copied'));
           });
@@ -1390,14 +1423,14 @@ function renderShortsFeed() {
     });
   });
   
-  // ✅ Channel click
+  // Channel click
   shortsFeed.querySelectorAll('[data-channel]').forEach(el => {
-    el.addEventListener('click', (e) => { e.stopPropagation(); openChannelView(el.dataset.channel); });
+    addHandler(el, 'click', (e) => { e.stopPropagation(); openChannelView(el.dataset.channel); });
   });
   
-  // ✅ Title click
+  // Title click
   shortsFeed.querySelectorAll('[data-title]').forEach(el => {
-    el.addEventListener('click', (e) => {
+    addHandler(el, 'click', (e) => {
       e.stopPropagation();
       const vid = state.allVideos.find(v => v.id === el.dataset.title);
       if (vid) showAlert(escapeHTML(vid.title),
@@ -1408,26 +1441,23 @@ function renderShortsFeed() {
     });
   });
   
-  // ✅ Menu button
+  // Menu button
   shortsFeed.querySelectorAll('[data-menu]').forEach(btn => {
-    btn.addEventListener('click', (e) => {
+    addHandler(btn, 'click', (e) => {
       e.stopPropagation();
       const vid = state.allVideos.find(v => v.id === btn.dataset.menu);
       if (vid) openVideoActions(vid);
     });
   });
   
-  // ✅ Play overlay - UNMUTE + PLAY
+  // Play overlay
   shortsFeed.querySelectorAll('.short-play-overlay').forEach(overlay => {
-    overlay.addEventListener('click', (e) => {
+    addHandler(overlay, 'click', (e) => {
       e.stopPropagation();
       const wrapper = overlay.parentElement;
       const video = wrapper.querySelector('video');
       if (!video) return;
-      
-      // ✅ Global unmute
       state.shortsUnmuted = true;
-      
       if (video.paused) {
         video.muted = false;
         video.play().then(() => { overlay.style.opacity = '0'; }).catch(() => {});
@@ -1446,7 +1476,7 @@ function renderShortsFeed() {
 }
 
 // ============================================================
-// ✅ SETUP SHORTS - SINGLE OBSERVER, NO CONFLICT
+// ✅ SETUP SHORTS - FINAL
 // ============================================================
 function setupShortsAll() {
   const container = document.getElementById('shortsScrollContainer');
@@ -1454,8 +1484,7 @@ function setupShortsAll() {
   const videos = Array.from(container.querySelectorAll('.short-video'));
   if (videos.length === 0) return;
   
-  // ✅ Video setup - NO loop attribute
-  videos.forEach(v => {
+  videos.forEach((v, i) => {
     v.loop = false;
     v.removeAttribute('loop');
     v.playsInline = true;
@@ -1467,23 +1496,22 @@ function setupShortsAll() {
     v.setAttribute('disablepictureinpicture', '');
     v.preload = 'auto';
     v.muted = !state.shortsUnmuted;
+    v.dataset.visible = i === 0 ? 'true' : 'false';
     
-    // ✅ Loop via ended event - THIS is the key fix
+    // ✅ Loop via ended event - Direct check
     v.addEventListener('ended', (e) => {
       e.preventDefault();
       e.stopPropagation();
-      // Only loop if this video is still visible
-      if (v.dataset.visible === 'true') {
+      const shortItem = v.closest('.short-item');
+      if (shortItem?.dataset.visible === 'true') {
         v.currentTime = 0;
         v.play().catch(() => {});
       }
     });
     
-    // ✅ Prevent tap from pausing
     v.addEventListener('click', (e) => e.stopPropagation());
   });
   
-  // ✅ SINGLE observer for both play AND tracking
   const playObserver = new IntersectionObserver((entries) => {
     entries.forEach(entry => {
       const video = entry.target;
@@ -1491,30 +1519,27 @@ function setupShortsAll() {
       const overlay = shortItem?.querySelector('.short-play-overlay');
       
       if (entry.isIntersecting && entry.intersectionRatio >= 0.6) {
-        // ✅ Visible - mark and play
         video.dataset.visible = 'true';
+        state.currentVisibleShortId = shortItem?.dataset.shortId;
         
-        // ✅ Pause ALL other videos
+        // Pause ALL other videos
         videos.forEach(v => {
           if (v !== video && !v.paused) {
             v.pause();
             const o = v.closest('.short-item')?.querySelector('.short-play-overlay');
             if (o) { o.style.opacity = '1'; o.innerHTML = '<i class="fas fa-play"></i>'; }
           }
-          // Mark others as not visible
           if (v !== video) v.dataset.visible = 'false';
         });
         
-        // ✅ Start tracking
+        // Start tracking
         if (!video._watchStarted) {
           video._watchStarted = Date.now();
           video._shortId = shortItem?.dataset.shortId;
         }
         
-        // ✅ Play with correct mute state
         video.muted = !state.shortsUnmuted;
         if (video.paused) {
-          // ✅ Reset to start if this is a fresh view
           if (video.currentTime >= video.duration - 0.5) {
             video.currentTime = 0;
           }
@@ -1537,10 +1562,7 @@ function setupShortsAll() {
             });
         }
         
-        state.currentVisibleShortId = shortItem?.dataset.shortId;
-        
       } else if (entry.intersectionRatio < 0.3) {
-        // ✅ Not visible - mark, pause, and record view
         video.dataset.visible = 'false';
         
         if (!video.paused) {
@@ -1551,7 +1573,7 @@ function setupShortsAll() {
           }
         }
         
-        // ✅ Record view when scrolled away
+        // Record view
         if (video._watchStarted && video._shortId) {
           const elapsed = Math.floor((Date.now() - video._watchStarted) / 1000);
           if (elapsed > 2 && state.user && video._shortId) {
@@ -1580,7 +1602,7 @@ function setupShortsAll() {
   videos.forEach(v => playObserver.observe(v));
   state.shortsPlayObserver = playObserver;
   
-  // ✅ Progress bar
+  // Progress bar
   videos.forEach((video) => {
     video.addEventListener('timeupdate', () => {
       const progressEl = video.closest('.short-item')?.querySelector('.short-progress-fill');
@@ -1592,10 +1614,12 @@ function setupShortsAll() {
     video.addEventListener('enterpictureinpicture', (e) => e.preventDefault());
   });
   
-  // ✅ Auto-play first video (muted if not unmuted)
+  // Auto-play first video
   setTimeout(() => {
     const first = container.querySelector('.short-video');
     if (first && first.paused) {
+      const firstId = first.closest('.short-item')?.dataset.shortId;
+      state.currentVisibleShortId = firstId;
       first.dataset.visible = 'true';
       first.muted = !state.shortsUnmuted;
       first.play().then(() => {
@@ -1612,7 +1636,6 @@ function setupShortsAll() {
   }, 300);
 }
 
-// ✅ Add short view
 async function addShortView(videoId, seconds) {
   try {
     const vid = state.allVideos.find(v => v.id === videoId);
@@ -1646,20 +1669,24 @@ async function openWatchPage(vid) {
   if (!vid || !watchPage || !watchBody) return;
   if (watchHeaderTitle) watchHeaderTitle.textContent = vid.title;
   let videoUrl = vid.video_url;
-  getVideoFromIDB(vid.id).then(blob => {
-    if (blob) {
-      const videoEl = document.getElementById('watchVideoElement');
-      if (videoEl) {
-        const t = videoEl.currentTime;
-        const wasPlaying = !videoEl.paused;
-        try {
-          videoEl.src = URL.createObjectURL(blob);
-          videoEl.currentTime = t;
-          if (wasPlaying) videoEl.play().catch(()=>{});
-        } catch(e){}
+  const cacheKey = `idb_checked_${vid.id}`;
+  if (!sessionStorage.getItem(cacheKey)) {
+    sessionStorage.setItem(cacheKey, '1');
+    getVideoFromIDB(vid.id).then(blob => {
+      if (blob) {
+        const videoEl = document.getElementById('watchVideoElement');
+        if (videoEl) {
+          const t = videoEl.currentTime;
+          const wasPlaying = !videoEl.paused;
+          try {
+            videoEl.src = URL.createObjectURL(blob);
+            videoEl.currentTime = t;
+            if (wasPlaying) videoEl.play().catch(()=>{});
+          } catch(e){}
+        }
       }
-    }
-  }).catch(()=>{});
+    }).catch(()=>{});
+  }
   const ch = state.allChannels.find(c => c.username === vid.channel_username) || {};
   const isMine = vid.owner_id === state.user?.id;
   const chId = ch.id;
@@ -1736,13 +1763,21 @@ async function openWatchPage(vid) {
     }
   }
   await loadComments(vid.id);
-  document.getElementById('watchChannelIcon')?.addEventListener('click', () => {
+  const cloneAndGet = (id) => {
+    const el = document.getElementById(id);
+    if (!el) return null;
+    const clone = el.cloneNode(true);
+    el.parentNode.replaceChild(clone, el);
+    return clone;
+  };
+  
+  cloneAndGet('watchChannelIcon')?.addEventListener('click', () => {
     watchPage.classList.remove('open'); openChannelView(vid.channel_username);
   });
-  document.getElementById('watchChannelInfo')?.addEventListener('click', () => {
+  cloneAndGet('watchChannelInfo')?.addEventListener('click', () => {
     watchPage.classList.remove('open'); openChannelView(vid.channel_username);
   });
-  document.getElementById('subBtn')?.addEventListener('click', async (e) => {
+  cloneAndGet('subBtn')?.addEventListener('click', async (e) => {
     const btn = e.currentTarget;
     if (!state.user) { showToast('Login required'); return; }
     btn.disabled = true;
@@ -1775,15 +1810,15 @@ async function openWatchPage(vid) {
     } catch (err) { showToast('❌ ' + err.message); }
     btn.disabled = false;
   });
-  document.getElementById('likeBtn')?.addEventListener('click', async () => {
+  cloneAndGet('likeBtn')?.addEventListener('click', async () => {
     const newLikes = (vid.likes || 0) + 1;
     await supabaseClient.from('videos').update({ likes: newLikes }).eq('id', vid.id);
     document.getElementById('likeCount').textContent = formatViews(newLikes);
     showToast('👍 Liked');
   });
-  document.getElementById('shareBtn')?.addEventListener('click', () => {
+  cloneAndGet('shareBtn')?.addEventListener('click', () => {
     const url = vid.video_url || window.location.href;
-    if (navigator.share) {
+    if (navigator.share && window.isSecureContext) {
       navigator.share({ title: vid.title, url: url }).catch(() => {
         navigator.clipboard.writeText(url).then(() => showToast('🔗 Link copied'));
       });
@@ -1791,8 +1826,8 @@ async function openWatchPage(vid) {
       navigator.clipboard.writeText(url).then(() => showToast('🔗 Link copied'));
     }
   });
-  document.getElementById('saveBtn')?.addEventListener('click', () => showToast('📌 Saved'));
-  document.getElementById('watchReportBtn')?.addEventListener('click', () => {
+  cloneAndGet('saveBtn')?.addEventListener('click', () => showToast('📌 Saved'));
+  cloneAndGet('watchReportBtn')?.addEventListener('click', () => {
     if (!state.user) { showToast('Login required'); return; }
     currentReportVideoId = vid.id;
     currentReportReason = null;
@@ -1801,7 +1836,7 @@ async function openWatchPage(vid) {
     if (rsb) { rsb.disabled = true; rsb.innerHTML = '<i class="fas fa-paper-plane"></i> Submit Report'; }
     document.getElementById('reportModal')?.classList.add('open');
   });
-  document.getElementById('commentSendBtn')?.addEventListener('click', async () => {
+  cloneAndGet('commentSendBtn')?.addEventListener('click', async () => {
     const input = document.getElementById('commentInput');
     const text = input.value.trim();
     if (!text) return;
@@ -1815,7 +1850,7 @@ async function openWatchPage(vid) {
     showToast('💬 Comment posted');
     await loadComments(vid.id);
   });
-  document.getElementById('commentInput')?.addEventListener('keydown', (e) => {
+  cloneAndGet('commentInput')?.addEventListener('keydown', (e) => {
     if (e.key === 'Enter') document.getElementById('commentSendBtn')?.click();
   });
   await loadRelatedVideos(vid);
@@ -1827,7 +1862,11 @@ async function loadRelatedVideos(currentVid) {
   if (!listEl) return;
   try {
     let related = state.allVideos.filter(v => v.id !== currentVid.id && v.type !== 'short' && !v.is_live);
-    const sameTags = related.filter(v => v.tags && currentVid.tags && v.tags.some(t => currentVid.tags.includes(t)));
+    const currentTags = parseTags(currentVid.tags);
+    const sameTags = related.filter(v => {
+      const vTags = parseTags(v.tags);
+      return vTags.some(t => currentTags.includes(t));
+    });
     const sameCategory = related.filter(v => v.category === currentVid.category);
     const sameChannel = related.filter(v => v.channel_username === currentVid.channel_username);
     const trending = [...related].sort((a, b) => (b.views || 0) - (a.views || 0));
@@ -2736,6 +2775,10 @@ async function startLiveStream() {
 
 async function setupAgoraBroadcaster(channelName, stream) {
   let client = null;
+  const timeoutPromise = new Promise((_, reject) => 
+    setTimeout(() => reject(new Error('Agora timeout - falling back to local preview')), 15000)
+  );
+  
   try {
     if (typeof AgoraRTC === 'undefined') throw new Error('Agora SDK not loaded');
     liveBroadcastContainer.innerHTML = '';
@@ -2747,22 +2790,28 @@ async function setupAgoraBroadcaster(channelName, stream) {
     localVideo.setAttribute('playsinline', '');
     localVideo.style.cssText = 'width:100%;height:100%;object-fit:contain;background:#000;';
     liveBroadcastContainer.appendChild(localVideo);
-    client = AgoraRTC.createClient({ mode: 'live', codec: 'vp8' });
-    state.agoraClient = client;
-    await client.setClientRole('host');
-    await client.join(AGORA_APP_ID, channelName, null, null);
-    const [audioTrack, videoTrack] = await AgoraRTC.createMicrophoneAndCameraTracks(
-      { AEC: true, ANS: true, encoderConfig: '480p_1' },
-      { encoderConfig: '480p_1', optimizationMode: 'motion' }
-    );
-    state.agoraTracks = [audioTrack, videoTrack];
-    try {
-      liveBroadcastContainer.innerHTML = '';
-      videoTrack.play(liveBroadcastContainer);
-    } catch (e) { console.error('Agora play error:', e); }
-    await client.publish([audioTrack, videoTrack]);
-    client.on('user-joined', () => updateLiveViewerCount());
-    client.on('user-left', () => updateLiveViewerCount());
+    
+    await Promise.race([
+      (async () => {
+        client = AgoraRTC.createClient({ mode: 'live', codec: 'vp8' });
+        state.agoraClient = client;
+        await client.setClientRole('host');
+        await client.join(AGORA_APP_ID, channelName, null, null);
+        const [audioTrack, videoTrack] = await AgoraRTC.createMicrophoneAndCameraTracks(
+          { AEC: true, ANS: true, encoderConfig: '480p_1' },
+          { encoderConfig: '480p_1', optimizationMode: 'motion' }
+        );
+        state.agoraTracks = [audioTrack, videoTrack];
+        try {
+          liveBroadcastContainer.innerHTML = '';
+          videoTrack.play(liveBroadcastContainer);
+        } catch (e) { console.error('Agora play error:', e); }
+        await client.publish([audioTrack, videoTrack]);
+        client.on('user-joined', () => updateLiveViewerCount());
+        client.on('user-left', () => updateLiveViewerCount());
+      })(),
+      timeoutPromise
+    ]);
   } catch (err) {
     console.error('Agora broadcaster error:', err);
     if (client) { try { await client.leave(); } catch (e) {} state.agoraClient = null; }
@@ -2873,6 +2922,11 @@ async function openLiveWatch(vid) {
 }
 
 async function joinAgoraAsViewer(channelName) {
+  // ✅ Cleanup old client first
+  if (state.agoraClient) {
+    try { await state.agoraClient.leave(); } catch(e) {}
+    state.agoraClient = null;
+  }
   try {
     const client = AgoraRTC.createClient({ mode: 'live', codec: 'vp8' });
     state.agoraClient = client;
@@ -4210,19 +4264,39 @@ if (profileBackBtn) profileBackBtn.addEventListener('click', () => {
 document.querySelectorAll('.nav-item').forEach(item => {
   item.addEventListener('click', function () {
     if (this.id === 'navYou') return;
+    
+    if (state.shortsPlayObserver) {
+      state.shortsPlayObserver.disconnect();
+      state.shortsPlayObserver = null;
+    }
+    if (state.shortsObserver) {
+      state.shortsObserver.disconnect();
+      state.shortsObserver = null;
+    }
+    state.shortsHandlers.forEach(({ el, type, fn }) => {
+      try { if (el && el.removeEventListener) el.removeEventListener(type, fn); } catch(e) {}
+    });
+    state.shortsHandlers = [];
+    
     document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
     this.classList.add('active');
     const tab = this.dataset.tab;
+    
     if (tab === 'home') { 
       currentFilter = 'home'; 
+      state.currentVisibleShortId = null;
+      state.shortsViewTracker.clear();
       renderFeed('', 'home'); 
       localStorage.setItem('fortube_last_filter', 'home'); 
     } else if (tab === 'shorts') { 
       currentFilter = 'shorts'; 
+      state.shortsViewTracker.clear();
       renderShortsFeed(); 
       localStorage.setItem('fortube_last_filter', 'shorts'); 
     } else if (tab === 'subs') { 
       currentFilter = 'subs'; 
+      state.currentVisibleShortId = null;
+      state.shortsViewTracker.clear();
       renderFeed('', 'subs'); 
       openSubscriptions(); 
       localStorage.setItem('fortube_last_filter', 'subs'); 
@@ -4325,9 +4399,20 @@ if (alertCloseBtn) alertCloseBtn.addEventListener('click', () => alertPopup.clas
 // ==================== INIT ====================
 checkSession();
 
-setInterval(() => {
+// ✅ FIXED: Auto-refresh with actual code
+setInterval(async () => {
+  if (currentFilter === 'shorts') return;
   if (state.loggedIn && watchPage && !watchPage.classList.contains('open') && !liveWatchPage.classList.contains('open')) {
-    loadFeedFromSupabase();
+    try {
+      const { data } = await supabaseClient
+        .from('videos')
+        .select('*')
+        .gte('created_at', new Date(Date.now() - 120000).toISOString())
+        .order('created_at', { ascending: false });
+      if (data && data.length > 0) {
+        await loadFeedFromSupabase();
+      }
+    } catch (e) {}
     loadNotifications();
   }
 }, 30000);
@@ -4340,9 +4425,27 @@ setInterval(() => {
   }
 }, 10000);
 
-window.addEventListener('beforeunload', async () => {
+// ✅ FIXED: Use fetch with keepalive instead of sendBeacon
+window.addEventListener('beforeunload', () => {
   saveCurrentPageState();
-  if (state.currentWatchingVideoId) await saveWatchTimeNow(state.currentWatchingVideoId);
+  if (state.currentWatchingVideoId && state.currentWatchStartTime) {
+    const elapsed = Math.floor((Date.now() - state.currentWatchStartTime) / 1000);
+    if (elapsed > 0) {
+      try {
+        fetch(`${SUPABASE_URL}/rest/v1/videos?id=eq.${state.currentWatchingVideoId}`, {
+          method: 'PATCH',
+          keepalive: true,
+          headers: {
+            'apikey': SUPABASE_KEY,
+            'Authorization': `Bearer ${SUPABASE_KEY}`,
+            'Content-Type': 'application/json',
+            'Prefer': 'return=minimal'
+          },
+          body: JSON.stringify({ watch_time_seconds: elapsed })
+        }).catch(() => {});
+      } catch (e) {}
+    }
+  }
   if (state.agoraClient) { try { state.agoraClient.leave(); } catch (e) {} }
   stopRevenueLiveUpdate();
   if (state.shortsPlayObserver) state.shortsPlayObserver.disconnect();
