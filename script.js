@@ -1,9 +1,8 @@
 /* ============================================================
-   FORTUBE v32 - REVENUE LIVE UPDATE FIXED
-   - Revenue har 1 view par update hoga
-   - Verified + Unverified dono par
-   - Region fallback fixed
-   - Withdrawals error fixed
+   FORTUBE v33 - GUEST MODE + LOGIN ON ACTION
+   - Videos visible without login (AdSense friendly)
+   - Login required only for actions (like, comment, subscribe, etc.)
+   - Live streaming fixed (black screen issue resolved)
    ============================================================ */
 
 if (typeof supabase === 'undefined') {
@@ -31,7 +30,6 @@ const AGORA_APP_ID = "e84b0914baa44e8c878fb68ade1d804e";
 const ADMIN_EMAILS = ["syedtechnical63@gmail.com"];
 const WITHDRAW_URL = "https://syedtechnical63-wq.github.io/withdrawal/";
 
-// ✅ REVENUE RATES (FIXED)
 const REVENUE_PER_1000_SUBS = 2.00;
 const REVENUE_PER_1000_HOURS = 5.00;
 const REVENUE_PER_1000_VIEWS_NORMAL = 0.08;
@@ -129,6 +127,8 @@ const state = {
   shortsPlayObserver: null,
   shortsHandlers: [],
   revenueData: null,
+  guestMode: true, // ✅ NEW: Guest mode flag
+  pendingAction: null, // ✅ NEW: Store pending action after login
   preferences: {
     language: 'English',
     region: 'Global',
@@ -145,6 +145,7 @@ const $ = id => document.getElementById(id);
 
 // ==================== DOM REFS ====================
 const loginGate = $('loginGate');
+const gateCloseBtn = $('gateCloseBtn');
 const gateEmail = $('gateEmail');
 const gatePassword = $('gatePassword');
 const gateLoginBtn = $('gateLoginBtn');
@@ -461,7 +462,43 @@ function parseTags(tags) {
 }
 
 // ============================================================
-// 💰 REVENUE - FIXED (LIVE UPDATE)
+// ✅ LOGIN GATE CONTROL (NEW)
+// ============================================================
+function showLoginGate(pendingAction = null) {
+  if (state.loggedIn) return;
+  state.pendingAction = pendingAction;
+  if (loginGate) {
+    loginGate.classList.remove('hide');
+    gateEmail.value = '';
+    gatePassword.value = '';
+    gateEmail.focus();
+  }
+}
+
+function hideLoginGate() {
+  if (loginGate) loginGate.classList.add('hide');
+}
+
+function requireLogin(actionCallback) {
+  if (!state.loggedIn) {
+    showLoginGate(actionCallback);
+    showToast('🔐 Login required');
+    return false;
+  }
+  return true;
+}
+
+// ✅ Execute pending action after successful login
+function executePendingAction() {
+  if (state.pendingAction && typeof state.pendingAction === 'function') {
+    const action = state.pendingAction;
+    state.pendingAction = null;
+    setTimeout(() => action(), 500);
+  }
+}
+
+// ============================================================
+// 💰 REVENUE
 // ============================================================
 function calculateRevenue(subscribers, watchHours, totalViews, region) {
   const subRevenue = (subscribers / 1000) * REVENUE_PER_1000_SUBS;
@@ -475,11 +512,9 @@ function calculateRevenue(subscribers, watchHours, totalViews, region) {
   };
 }
 
-// ✅ FIXED: getUserRevenue with proper error handling
 async function getUserRevenue() {
   if (!state.channel || !state.user) return 0;
   try {
-    // Videos fetch
     let videos = [];
     try {
       const { data } = await supabaseClient
@@ -487,7 +522,6 @@ async function getUserRevenue() {
       videos = data || [];
     } catch (e) { console.warn('Videos fetch failed:', e); }
 
-    // Live streams fetch
     let liveStreams = [];
     try {
       const { data } = await supabaseClient
@@ -508,7 +542,6 @@ async function getUserRevenue() {
     const region = state.channel.region || 'Global';
     const revenue = calculateRevenue(subs, watchHours, totalViews, region);
 
-    // Withdrawals fetch (safely)
     let withdrawn = 0;
     try {
       const { data: withdrawals, error } = await supabaseClient
@@ -551,13 +584,11 @@ async function getGrossRevenue() {
   } catch (e) { return 0; }
 }
 
-// ✅ FIXED: updateRevenueDisplay with proper element targeting
 async function updateRevenueDisplay() {
   if (!state.channel || !state.user) return 0;
   try {
     const revenue = await getUserRevenue();
     
-    // Update all possible revenue elements
     const totalRevenueEl = document.getElementById('totalRevenue');
     if (totalRevenueEl) totalRevenueEl.textContent = revenue.toFixed(4);
     
@@ -573,7 +604,6 @@ async function updateRevenueDisplay() {
     const amountInput = document.getElementById('withdrawAmountInput');
     if (amountInput) amountInput.max = revenue.toFixed(4);
 
-    // Update breakdown
     if (state.revenueData) {
       const revFromSubs = document.getElementById('revenueFromSubs');
       if (revFromSubs) revFromSubs.textContent = '$' + state.revenueData.breakdown.subRevenue.toFixed(4);
@@ -598,7 +628,6 @@ async function updateRevenueDisplay() {
   }
 }
 
-// ✅ NEW: Fast revenue update (har 1 second)
 function startRevenueFastUpdate() {
   if (state.revenueFastInterval) clearInterval(state.revenueFastInterval);
   state.revenueFastInterval = setInterval(async () => {
@@ -606,10 +635,9 @@ function startRevenueFastUpdate() {
         monetizationRevenuePage?.style.display === 'block') {
       await updateRevenueDisplay();
     }
-  }, 1000); // ✅ 1 second
+  }, 1000);
 }
 
-// ✅ Regular revenue update (har 10 second)
 function startRevenueLiveUpdate() {
   if (state.revenueInterval) clearInterval(state.revenueInterval);
   state.revenueInterval = setInterval(async () => {
@@ -618,7 +646,6 @@ function startRevenueLiveUpdate() {
       await updateRevenueDisplay();
     }
   }, 10000);
-  // Also start fast update
   startRevenueFastUpdate();
 }
 
@@ -831,9 +858,6 @@ function renderAnalyticsPageChart(views, watchHours, subs) {
   drawLine(watchData, '#1c7aa3');
 }
 
-// ============================================================
-// PASSWORD RESET
-// ============================================================
 async function resetPassword(email) {
   try {
     const { error } = await supabaseClient.auth.resetPasswordForEmail(email);
@@ -868,9 +892,6 @@ function unlockAudioContext() {
 document.addEventListener('touchstart', unlockAudioContext, { once: true });
 document.addEventListener('click', unlockAudioContext, { once: true });
 
-// ============================================================
-// VIDEO COMPRESSION
-// ============================================================
 async function compressVideo(inputBlob, maxSizeMB = 40) {
   return new Promise(async (resolve) => {
     try {
@@ -964,9 +985,6 @@ async function compressVideo(inputBlob, maxSizeMB = 40) {
   });
 }
 
-// ============================================================
-// THUMBNAIL
-// ============================================================
 async function generateThumbnailFromVideo(videoBlob, seekTime = 1) {
   return new Promise((resolve, reject) => {
     try {
@@ -1008,9 +1026,6 @@ async function generateThumbnailFromVideo(videoBlob, seekTime = 1) {
   });
 }
 
-// ============================================================
-// PAGE STATE
-// ============================================================
 function saveCurrentPageState() {
   try {
     const stateData = {
@@ -1080,20 +1095,21 @@ async function restorePageState() {
 window.addEventListener('beforeunload', () => { saveCurrentPageState(); });
 
 // ============================================================
-// AUTH
+// ✅ AUTH - GUEST MODE
 // ============================================================
 async function checkSession() {
   try {
+    // ✅ Show content by default (guest mode)
     if (loginGate) loginGate.classList.add('hide');
+    
     const { data: { session }, error } = await supabaseClient.auth.getSession();
-    if (error) {
-      if (loginGate) loginGate.classList.remove('hide');
-      return;
-    }
+    
     if (session && session.user) {
+      // User is logged in
       state.loggedIn = true;
       state.user = session.user;
       state.email = session.user.email;
+      state.guestMode = false;
       await loadUserChannel();
       updateUI();
       await loadFeedFromSupabase();
@@ -1103,16 +1119,24 @@ async function checkSession() {
       if (banned) {
         await supabaseClient.auth.signOut();
         state.loggedIn = false;
-        if (loginGate) loginGate.classList.remove('hide');
+        state.guestMode = true;
+        if (loginGate) loginGate.classList.add('hide');
         return;
       }
       await restorePageState();
     } else {
-      if (loginGate) loginGate.classList.remove('hide');
+      // ✅ Guest mode - load public data only
+      state.loggedIn = false;
+      state.guestMode = true;
+      await loadFeedFromSupabase();
+      updateUI();
     }
   } catch (e) {
     console.error('checkSession error:', e);
-    if (loginGate) loginGate.classList.remove('hide');
+    // ✅ Still show content in guest mode
+    state.guestMode = true;
+    await loadFeedFromSupabase();
+    updateUI();
   }
 }
 
@@ -1143,6 +1167,9 @@ if (gateLoginBtn) {
     const pass = gatePassword.value.trim();
     if (!email || !email.includes('@')) { showToast('Valid email enter karein'); return; }
     if (!pass || pass.length < 6) { showToast('Password min 6 characters'); return; }
+    const ageCheck = document.getElementById('ageConfirm');
+    if (ageCheck && !ageCheck.checked) { showToast('Please confirm you are 13+'); return; }
+    
     gateLoginBtn.disabled = true;
     gateLoginBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Please wait...';
     try {
@@ -1172,8 +1199,9 @@ if (gateLoginBtn) {
         state.loggedIn = true;
         state.user = data.user;
         state.email = data.user.email;
+        state.guestMode = false;
         await loadUserChannel();
-        if (loginGate) loginGate.classList.add('hide');
+        hideLoginGate();
         showToast('✅ Welcome ' + email);
         updateUI();
         await loadFeedFromSupabase();
@@ -1183,12 +1211,27 @@ if (gateLoginBtn) {
         if (banned) {
           await supabaseClient.auth.signOut();
           state.loggedIn = false;
-          if (loginGate) loginGate.classList.remove('hide');
+          state.guestMode = true;
+          return;
         }
+        // ✅ Execute pending action
+        executePendingAction();
       }
     } catch (err) { showToast('❌ ' + err.message); }
     gateLoginBtn.disabled = false;
     gateLoginBtn.innerHTML = '<i class="fas fa-sign-in-alt"></i> Login / Sign Up';
+  });
+}
+
+// ✅ Close login gate button
+if (gateCloseBtn) {
+  gateCloseBtn.addEventListener('click', () => {
+    if (state.loggedIn) {
+      hideLoginGate();
+    } else {
+      hideLoginGate();
+      state.pendingAction = null;
+    }
   });
 }
 
@@ -1219,6 +1262,7 @@ if (logoutBtn) {
     state.shortsViewTracker.clear();
     state.shortsUnmuted = false;
     state.currentVisibleShortId = null;
+    state.guestMode = true;
     stopRevenueLiveUpdate();
     if (state.shortsPlayObserver) { state.shortsPlayObserver.disconnect(); state.shortsPlayObserver = null; }
     if (state.shortsObserver) { state.shortsObserver.disconnect(); state.shortsObserver = null; }
@@ -1229,10 +1273,12 @@ if (logoutBtn) {
     } catch (e) {}
     if (settingsPage) settingsPage.classList.remove('open');
     if (profilePanel) profilePanel.classList.remove('open');
-    if (loginGate) loginGate.classList.remove('hide');
+    hideLoginGate();
     if (feed) feed.querySelectorAll('.video-card').forEach(c => c.remove());
     if (emptyFeed) emptyFeed.style.display = 'flex';
     showToast('👋 Logged out');
+    await loadFeedFromSupabase();
+    updateUI();
   });
 }
 
@@ -1241,7 +1287,7 @@ async function loadFeedFromSupabase() {
   try {
     const { data: videos, error } = await supabaseClient
       .from('videos').select('*').order('created_at', { ascending: false });
-    if (error) return;
+    if (error) { console.warn('Videos fetch error:', error); }
     state.allVideos = videos || [];
     const { data: channels } = await supabaseClient.from('channels').select('*');
     state.allChannels = channels || [];
@@ -1252,11 +1298,10 @@ async function loadFeedFromSupabase() {
     }
     renderFeed('', currentFilter);
     if (currentFilter === 'shorts') renderShortsFeed();
-    // Update revenue after loading new data
     if (state.channel && state.user) {
       updateRevenueDisplay();
     }
-  } catch (e) {}
+  } catch (e) { console.warn('loadFeedFromSupabase error:', e); }
 }
 
 function matchVideoSearch(v, query) {
@@ -1464,6 +1509,7 @@ function renderShortsFeed() {
   shortsFeed.querySelectorAll('[data-like]').forEach(btn => {
     addHandler(btn, 'click', async (e) => {
       e.stopPropagation();
+      if (!requireLogin(() => btn.click())) return;
       const vidId = btn.dataset.like;
       const vid = state.allVideos.find(v => v.id === vidId);
       if (!vid) return;
@@ -1479,6 +1525,7 @@ function renderShortsFeed() {
   shortsFeed.querySelectorAll('[data-comment]').forEach(btn => {
     addHandler(btn, 'click', (e) => {
       e.stopPropagation();
+      if (!requireLogin(() => btn.click())) return;
       const vid = state.allVideos.find(v => v.id === btn.dataset.comment);
       if (vid) openWatchPage(vid);
     });
@@ -1549,9 +1596,6 @@ function renderShortsFeed() {
   });
 }
 
-// ============================================================
-// ✅ SETUP SHORTS
-// ============================================================
 function setupShortsAll() {
   const container = document.getElementById('shortsScrollContainer');
   if (!container) return;
@@ -1717,7 +1761,6 @@ async function addShortView(videoId, seconds) {
     vid.watch_time_seconds = newWatch;
     const viewsEl = document.querySelector(`[data-views="${videoId}"]`);
     if (viewsEl) viewsEl.innerHTML = `<i class="fas fa-eye"></i> ${formatViews(newViews)} views`;
-    // ✅ Live revenue update
     if (state.channel && state.user && vid.owner_id === state.user.id) {
       updateRevenueDisplay();
     }
@@ -1731,7 +1774,6 @@ async function addShortWatchTimeOnly(videoId, seconds) {
     const newWatch = (vid.watch_time_seconds || 0) + seconds;
     await supabaseClient.from('videos').update({ watch_time_seconds: newWatch }).eq('id', videoId);
     vid.watch_time_seconds = newWatch;
-    // ✅ Live revenue update
     if (state.channel && state.user && vid.owner_id === state.user.id) {
       updateRevenueDisplay();
     }
@@ -1811,6 +1853,7 @@ async function openWatchPage(vid) {
       </div>
     </div>
   `;
+  // Increment view only if logged in (to avoid bot views)
   if (state.user && vid.owner_id !== state.user.id) {
     try {
       const newViews = (vid.views || 0) + 1;
@@ -1819,7 +1862,6 @@ async function openWatchPage(vid) {
         vid.views = newViews;
         const viewEl = document.getElementById('watchViewCount');
         if (viewEl) viewEl.textContent = formatViews(newViews);
-        // ✅ Live revenue update for video owner
         if (vid.owner_id === state.user.id) {
           updateRevenueDisplay();
         }
@@ -1859,7 +1901,7 @@ async function openWatchPage(vid) {
   });
   cloneAndGet('subBtn')?.addEventListener('click', async (e) => {
     const btn = e.currentTarget;
-    if (!state.user) { showToast('Login required'); return; }
+    if (!requireLogin(() => btn.click())) return;
     btn.disabled = true;
     try {
       if (btn.classList.contains('subscribed')) {
@@ -1885,14 +1927,13 @@ async function openWatchPage(vid) {
         showToast('✅ Subscribed!');
         if (ch.owner_id && ch.owner_id !== state.user.id) {
           await createNotification(ch.owner_id, `${state.channel?.name || 'Someone'} subscribed!`, 'subscribe');
-          // ✅ Live revenue update for channel owner
-          if (ch.owner_id === state.user.id) updateRevenueDisplay();
         }
       }
     } catch (err) { showToast('❌ ' + err.message); }
     btn.disabled = false;
   });
-  cloneAndGet('likeBtn')?.addEventListener('click', async () => {
+  cloneAndGet('likeBtn')?.addEventListener('click', async (e) => {
+    if (!requireLogin(() => e.currentTarget.click())) return;
     const newLikes = (vid.likes || 0) + 1;
     await supabaseClient.from('videos').update({ likes: newLikes }).eq('id', vid.id);
     document.getElementById('likeCount').textContent = formatViews(newLikes);
@@ -1908,9 +1949,12 @@ async function openWatchPage(vid) {
       navigator.clipboard.writeText(url).then(() => showToast('🔗 Link copied'));
     }
   });
-  cloneAndGet('saveBtn')?.addEventListener('click', () => showToast('📌 Saved'));
-  cloneAndGet('watchReportBtn')?.addEventListener('click', () => {
-    if (!state.user) { showToast('Login required'); return; }
+  cloneAndGet('saveBtn')?.addEventListener('click', (e) => {
+    if (!requireLogin(() => e.currentTarget.click())) return;
+    showToast('📌 Saved');
+  });
+  cloneAndGet('watchReportBtn')?.addEventListener('click', (e) => {
+    if (!requireLogin(() => e.currentTarget.click())) return;
     currentReportVideoId = vid.id;
     currentReportReason = null;
     document.querySelectorAll('.report-reason').forEach(r => r.classList.remove('selected'));
@@ -1918,11 +1962,11 @@ async function openWatchPage(vid) {
     if (rsb) { rsb.disabled = true; rsb.innerHTML = '<i class="fas fa-paper-plane"></i> Submit Report'; }
     document.getElementById('reportModal')?.classList.add('open');
   });
-  cloneAndGet('commentSendBtn')?.addEventListener('click', async () => {
+  cloneAndGet('commentSendBtn')?.addEventListener('click', async (e) => {
+    if (!requireLogin(() => e.currentTarget.click())) return;
     const input = document.getElementById('commentInput');
     const text = input.value.trim();
     if (!text) return;
-    if (!state.user) { showToast('Login required'); return; }
     const { error } = await supabaseClient.from('comments').insert({
       video_id: vid.id, user_id: state.user.id,
       author_name: state.channel?.name || 'User', text: text
@@ -2003,7 +2047,6 @@ async function addWatchTime(videoId, seconds) {
       if (!error) {
         const localVid = state.allVideos.find(v => v.id === videoId);
         if (localVid) localVid.watch_time_seconds = newWatchTime;
-        // ✅ Live revenue update
         if (localVid && localVid.owner_id === state.user.id) {
           updateRevenueDisplay();
         }
@@ -2055,6 +2098,7 @@ if (watchBackBtn) watchBackBtn.addEventListener('click', async () => {
 // ==================== VIDEO ACTIONS ====================
 function openVideoActions(vid) {
   if (!vid) return;
+  if (!requireLogin(() => openVideoActions(vid))) return;
   currentEditVideoId = vid.id;
   currentEditThumbnailData = null;
   const thumbHTML = vid.thumbnail_url ? `<img src="${vid.thumbnail_url}">` : '';
@@ -2224,7 +2268,7 @@ if (editVideoSaveBtn) {
 // ============================================================
 document.addEventListener('click', (e) => {
   if (e.target.closest('#vaReportBtn')) {
-    if (!state.user) { showToast('Login required'); return; }
+    if (!requireLogin(() => document.querySelector('#vaReportBtn')?.click())) return;
     if (!currentEditVideoId) return;
     const vid = state.allVideos.find(v => v.id === currentEditVideoId);
     if (vid && vid.owner_id === state.user.id) { showToast('Cannot report own video'); return; }
@@ -2260,7 +2304,7 @@ document.addEventListener('click', async (e) => {
   if (e.target.id === 'reportSubmitBtn' || e.target.closest('#reportSubmitBtn')) {
     if (!currentReportReason) { showToast('Select a reason'); return; }
     if (!currentReportVideoId) { showToast('Video not found'); return; }
-    if (!state.user) { showToast('Login required'); return; }
+    if (!requireLogin(() => document.getElementById('reportSubmitBtn')?.click())) return;
     const btn = e.target.closest('#reportSubmitBtn');
     btn.disabled = true;
     btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Submitting...';
@@ -2624,7 +2668,7 @@ document.addEventListener('click', (e) => {
 
 // ==================== SUBSCRIPTIONS ====================
 async function openSubscriptions() {
-  if (!state.user) { showToast('Login first'); return; }
+  if (!requireLogin(() => openSubscriptions())) return;
   if (subscriptionsPage) subscriptionsPage.classList.add('open');
   await renderSubscriptions();
 }
@@ -2681,7 +2725,7 @@ if (subsBackBtn) subsBackBtn.addEventListener('click', () => subscriptionsPage.c
 
 // ==================== PLUS MENU ====================
 function openPlusMenu() {
-  if (!state.loggedIn) { showToast('Login first'); return; }
+  if (!requireLogin(() => openPlusMenu())) return;
   if (state.channel) {
     const subs = state.channel.subscribers_count || 0;
     if (liveSubsBadge) {
@@ -2710,6 +2754,7 @@ if (plusMenuOverlay) plusMenuOverlay.addEventListener('click', closePlusMenu);
 
 if (plusUploadBtn) {
   plusUploadBtn.addEventListener('click', () => {
+    if (!requireLogin(() => plusUploadBtn.click())) return;
     closePlusMenu();
     if (!state.channel) { showToast('Create channel first'); openChannelSetup(); return; }
     currentUploadType = 'long';
@@ -2718,6 +2763,7 @@ if (plusUploadBtn) {
 }
 if (plusShortBtn) {
   plusShortBtn.addEventListener('click', () => {
+    if (!requireLogin(() => plusShortBtn.click())) return;
     closePlusMenu();
     if (!state.channel) { showToast('Create channel first'); openChannelSetup(); return; }
     currentUploadType = 'short';
@@ -2726,15 +2772,17 @@ if (plusShortBtn) {
 }
 if (plusLiveBtn) {
   plusLiveBtn.addEventListener('click', () => {
+    if (!requireLogin(() => plusLiveBtn.click())) return;
     closePlusMenu();
     setTimeout(() => openLiveSetup(), 300);
   });
 }
 
 // ============================================================
-// LIVE STREAMING
+// LIVE STREAMING - FIXED
 // ============================================================
 async function openLiveSetup() {
+  if (!requireLogin(() => openLiveSetup())) return;
   if (!state.channel) { showToast('Create channel first'); openChannelSetup(); return; }
   if (typeof AgoraRTC === 'undefined') {
     showAlert('SDK Missing', 'Agora SDK load nahi hua. Page refresh karein.', 'fa-exclamation-triangle');
@@ -2955,6 +3003,7 @@ async function endLiveStream() {
   }
 }
 
+// ✅ FIXED: Live viewer now works properly (no black screen)
 async function openLiveWatch(vid) {
   if (!vid || !vid.is_live) { showToast('Stream ended'); return; }
   if (typeof AgoraRTC === 'undefined') { showToast('Agora SDK missing'); return; }
@@ -3007,6 +3056,7 @@ async function openLiveWatch(vid) {
   }, 1000);
 }
 
+// ✅ FIXED: Better Agora viewer with proper error handling
 async function joinAgoraAsViewer(channelName) {
   if (state.agoraClient) {
     try { await state.agoraClient.leave(); } catch(e) {}
@@ -3021,7 +3071,10 @@ async function joinAgoraAsViewer(channelName) {
         await client.subscribe(user, mediaType);
         if (mediaType === 'video') {
           liveWatchContainer.innerHTML = '';
-          user.videoTrack.play(liveWatchContainer);
+          const playerContainer = document.createElement('div');
+          playerContainer.style.cssText = 'width:100%;height:100%;';
+          liveWatchContainer.appendChild(playerContainer);
+          user.videoTrack.play(playerContainer);
           hasVideo = true;
         }
         if (mediaType === 'audio') { user.audioTrack.play(); }
@@ -3029,6 +3082,11 @@ async function joinAgoraAsViewer(channelName) {
     });
     client.on('user-unpublished', () => {
       liveWatchContainer.innerHTML = '<div style="color:white;text-align:center;padding:20px;">Stream paused</div>';
+    });
+    client.on('user-left', () => {
+      if (liveWatchPage.classList.contains('open')) {
+        liveWatchContainer.innerHTML = '<div style="color:white;text-align:center;padding:20px;"><i class="fas fa-video-slash" style="font-size:2rem;"></i><div style="margin-top:10px;">Stream has ended</div></div>';
+      }
     });
     await client.setClientRole('audience');
     await client.join(AGORA_APP_ID, channelName, null, null);
@@ -3040,7 +3098,7 @@ async function joinAgoraAsViewer(channelName) {
           }
         });
       }
-    }, 10000);
+    }, 15000);
   } catch (err) {
     console.error('Agora viewer error:', err);
     liveWatchContainer.innerHTML = '<div style="color:white;text-align:center;padding:20px;"><i class="fas fa-exclamation-triangle" style="font-size:2rem;"></i><div style="margin-top:10px;">Unable to connect to stream</div></div>';
@@ -3093,7 +3151,8 @@ if (liveEndBtn) liveEndBtn.addEventListener('click', endLiveStream);
 if (liveWatchBackBtn) liveWatchBackBtn.addEventListener('click', closeLiveWatch);
 
 if (liveWatchSubBtn) {
-  liveWatchSubBtn.addEventListener('click', async () => {
+  liveWatchSubBtn.addEventListener('click', async (e) => {
+    if (!requireLogin(() => liveWatchSubBtn.click())) return;
     if (!currentWatchingLive) return;
     const ch = state.allChannels.find(c => c.username === currentWatchingLive.channel_username);
     if (!ch) return;
@@ -3122,7 +3181,8 @@ if (liveWatchSubBtn) {
 }
 
 if (liveLikeBtn) {
-  liveLikeBtn.addEventListener('click', async () => {
+  liveLikeBtn.addEventListener('click', async (e) => {
+    if (!requireLogin(() => liveLikeBtn.click())) return;
     if (!currentWatchingLive) return;
     const newLikes = (currentWatchingLive.likes || 0) + 1;
     await supabaseClient.from('live_streams').update({ likes: newLikes }).eq('id', currentWatchingLive.id);
@@ -3148,7 +3208,7 @@ let recordTimerInterval = null;
 let recordSeconds = 0;
 
 async function openCameraPanel() {
-  if (!state.loggedIn) { showToast('Login first'); return; }
+  if (!requireLogin(() => openCameraPanel())) return;
   if (!state.channel) { showToast('Create channel first'); openChannelSetup(); return; }
   if (currentUploadType === 'short') {
     shortVideoBtn.classList.add('active'); longVideoBtn.classList.remove('active');
@@ -3545,6 +3605,7 @@ if (metadataPublishBtn) {
 
 // ==================== CHANNEL SETUP ====================
 function openChannelSetup() {
+  if (!requireLogin(() => openChannelSetup())) return;
   setupChannelName.value = '';
   setupUsername.value = '';
   setupDesc.value = '';
@@ -3792,7 +3853,7 @@ async function openChannelView(username) {
         <span><strong>${videos.length}</strong> videos</span>
       </div>
       ${ch.description ? `<div class="channel-view-desc">${escapeHTML(ch.description)}</div>` : ''}
-      ${!isMine ? `<div class="channel-view-subscribe-row"><button class="subscribe-btn ${isSubscribed ? 'subscribed' : ''}" id="channelSubBtn" style="flex:1;justify-content:center;padding:12px;font-size:0.85rem;">${isSubscribed ? '<i class="fas fa-check"></i> Subscribed' : '<i class="fas fa-plus"></i> Subscribe'}</button></div>` : ''}
+      ${!isMine && state.user ? `<div class="channel-view-subscribe-row"><button class="subscribe-btn ${isSubscribed ? 'subscribed' : ''}" id="channelSubBtn" style="flex:1;justify-content:center;padding:12px;font-size:0.85rem;">${isSubscribed ? '<i class="fas fa-check"></i> Subscribed' : '<i class="fas fa-plus"></i> Subscribe'}</button></div>` : ''}
     </div>
     <div class="channel-view-videos-title"><i class="fas fa-video"></i> Videos</div>
     <div class="channel-video-grid" id="channelVideoGrid"></div>
@@ -3819,6 +3880,7 @@ async function openChannelView(username) {
     });
   }
   document.getElementById('channelSubBtn')?.addEventListener('click', async (e) => {
+    if (!requireLogin(() => e.currentTarget.click())) return;
     const btn = e.currentTarget;
     if (btn.classList.contains('subscribed')) {
       await supabaseClient.from('subscriptions').delete().eq('user_id', state.user.id).eq('channel_id', ch.id);
@@ -3861,7 +3923,7 @@ async function loadNotifications() {
 
 if (notifBtn) {
   notifBtn.addEventListener('click', () => {
-    if (!state.user) { showToast('Login first'); return; }
+    if (!requireLogin(() => notifBtn.click())) return;
     renderNotifications();
     notificationsPage.classList.add('open');
   });
@@ -3893,6 +3955,10 @@ function updateUI() {
       if (drawerUserEmail) drawerUserEmail.textContent = state.email || '';
       if (settingsEmail) settingsEmail.textContent = state.email || '';
       if (settingsChannelStatus) settingsChannelStatus.textContent = state.channel ? state.channel.name : 'None';
+    } else {
+      if (drawerUserEmail) drawerUserEmail.textContent = 'Not signed in';
+      if (settingsEmail) settingsEmail.textContent = 'Not signed in';
+      if (settingsChannelStatus) settingsChannelStatus.textContent = 'None';
     }
     updateAdminSection();
     if (state.channel) {
@@ -3909,7 +3975,20 @@ async function renderProfilePage() {
   const body = document.getElementById('profileBody');
   if (!body) return;
   if (!state.loggedIn) {
-    body.innerHTML = `<div class="no-subs" style="padding:60px 20px;">Please login</div>`;
+    body.innerHTML = `
+      <div class="profile-no-channel">
+        <div class="profile-banner-empty"></div>
+        <div style="text-align:center;padding:40px 20px;">
+          <i class="fas fa-user-circle" style="font-size:4rem;color:#a8c8d8;margin-bottom:16px;display:block;"></i>
+          <h3 style="font-size:1.1rem;font-weight:800;color:#0b4a5e;margin-bottom:8px;">Sign in to your account</h3>
+          <p style="font-size:0.85rem;color:#4d7e8c;margin-bottom:20px;">Create a channel, upload videos, and more.</p>
+          <button class="no-channel-btn" id="guestLoginBtn" style="margin:0 auto;display:flex;padding:14px 28px;">
+            <i class="fas fa-sign-in-alt"></i> Login / Sign Up
+          </button>
+        </div>
+      </div>
+    `;
+    document.getElementById('guestLoginBtn')?.addEventListener('click', () => showLoginGate());
     return;
   }
   if (!state.channel) {
@@ -4060,6 +4139,7 @@ async function renderProfilePage() {
 // 💰 CREATOR REWARDS UI
 // ============================================================
 async function refreshMonetizationPage() {
+  if (!state.user) return;
   const { data: applications } = await supabaseClient.from('monetization_applications')
     .select('*').eq('user_id', state.user.id)
     .order('created_at', { ascending: false }).limit(1);
@@ -4315,6 +4395,10 @@ document.querySelectorAll('.drawer-link').forEach(link => {
   link.addEventListener('click', function () {
     const type = this.dataset.drawer;
     closeDrawer();
+    // ✅ Require login for certain actions
+    if (['yourvideos', 'watchlater', 'playlists', 'settings'].includes(type)) {
+      if (!requireLogin(() => this.click())) return;
+    }
     document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
     document.querySelector('.nav-item[data-tab="home"]')?.classList.add('active');
     const categoryMap = {
@@ -4334,7 +4418,7 @@ document.querySelectorAll('.drawer-link').forEach(link => {
 // ==================== NAV ====================
 if (navYou) {
   navYou.addEventListener('click', () => {
-    if (!state.loggedIn) { showToast('Login first'); return; }
+    if (!requireLogin(() => navYou.click())) return;
     profilePanel.classList.add('open');
     updateUI();
     saveCurrentPageState();
@@ -4349,6 +4433,9 @@ if (profileBackBtn) profileBackBtn.addEventListener('click', () => {
 document.querySelectorAll('.nav-item').forEach(item => {
   item.addEventListener('click', function () {
     if (this.id === 'navYou') return;
+    
+    // ✅ Require login for subscriptions tab
+    if (this.dataset.tab === 'subs' && !requireLogin(() => this.click())) return;
     
     if (state.shortsPlayObserver) {
       state.shortsPlayObserver.disconnect();
@@ -4396,7 +4483,7 @@ if (settingsBackBtn) settingsBackBtn.addEventListener('click', () => {
 });
 if (settingsBtn) {
   settingsBtn.addEventListener('click', () => {
-    if (!state.loggedIn) { showToast('Login first'); return; }
+    if (!requireLogin(() => settingsBtn.click())) return;
     settingsPage.classList.add('open');
   });
 }
@@ -4481,13 +4568,33 @@ if (micBtn) {
 
 if (alertCloseBtn) alertCloseBtn.addEventListener('click', () => alertPopup.classList.remove('active'));
 
+// ==================== DARK MODE ====================
+const darkModeBtn = $('darkModeBtn');
+const toggleDarkMode = $('toggleDarkMode');
+
+function toggleDarkModeFn() {
+  document.body.classList.toggle('dark-mode');
+  const isDark = document.body.classList.contains('dark-mode');
+  localStorage.setItem('fortube_dark_mode', isDark ? '1' : '0');
+  if (toggleDarkMode) toggleDarkMode.classList.toggle('active', isDark);
+  showToast(isDark ? '🌙 Dark Mode ON' : '☀️ Light Mode ON');
+}
+
+if (darkModeBtn) darkModeBtn.addEventListener('click', toggleDarkModeFn);
+if (toggleDarkMode) toggleDarkMode.addEventListener('click', toggleDarkModeFn);
+
+if (localStorage.getItem('fortube_dark_mode') === '1') {
+  document.body.classList.add('dark-mode');
+  if (toggleDarkMode) toggleDarkMode.classList.add('active');
+}
+
 // ==================== INIT ====================
 checkSession();
 
-// ✅ FIXED: Auto-refresh with actual code
+// Auto-refresh feed
 setInterval(async () => {
   if (currentFilter === 'shorts') return;
-  if (state.loggedIn && watchPage && !watchPage.classList.contains('open') && !liveWatchPage.classList.contains('open')) {
+  if (watchPage && !watchPage.classList.contains('open') && !liveWatchPage.classList.contains('open')) {
     try {
       const { data } = await supabaseClient
         .from('videos')
@@ -4498,11 +4605,11 @@ setInterval(async () => {
         await loadFeedFromSupabase();
       }
     } catch (e) {}
-    loadNotifications();
+    if (state.loggedIn) loadNotifications();
   }
 }, 30000);
 
-// ✅ FIXED: Fast revenue update (1 second)
+// Fast revenue update
 setInterval(() => {
   if (state.loggedIn && state.channel && 
       (monetizationPage?.classList.contains('open') || 
@@ -4511,7 +4618,6 @@ setInterval(() => {
   }
 }, 1000);
 
-// ✅ FIXED: Use fetch with keepalive instead of sendBeacon
 window.addEventListener('beforeunload', () => {
   saveCurrentPageState();
   if (state.currentWatchingVideoId && state.currentWatchStartTime) {
