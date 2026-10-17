@@ -4809,3 +4809,1474 @@ body.dark-mode .analytics-cpm-label,
 body.dark-mode .analytics-video-stats {
     color: #8fb8cc;
 }
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  
+  <!-- ✅ PRIMARY SEO META TAGS -->
+  <title>ForTube - Free Video Sharing Platform | Watch, Upload & Go Live</title>
+  <meta name="description" content="ForTube is a free video sharing platform where you can watch, upload and share videos. Create your channel, go live, earn from Creator Rewards, and discover trending content in Gaming, Music, Sports, Tech, Education and more.">
+  <meta name="keywords" content="ForTube, video sharing, upload videos, watch videos, live streaming, creator rewards, monetization, free video platform, YouTube alternative, video upload site">
+  <meta name="author" content="ForTube">
+  <meta name="robots" content="index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1">
+  <link rel="canonical" href="https://fortube.online/">
+  
+  <!-- ✅ OPEN GRAPH -->
+  <meta property="og:type" content="website">
+  <meta property="og:url" content="https://fortube.online/">
+  <meta property="og:title" content="ForTube - Free Video Sharing Platform">
+  <meta property="og:description" content="Watch, upload and share videos on ForTube. Create your channel, go live, and earn Creator Rewards.">
+  <meta property="og:image" content="https://fortube.online/ForTube_icon_512px_under_500KB.png">
+  <meta property="og:site_name" content="ForTube">
+  
+  <!-- ✅ TWITTER CARD -->
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="ForTube - Free Video Sharing Platform">
+  <meta name="twitter:description" content="Watch, upload and share videos on ForTube. Create your channel, go live, and earn Creator Rewards.">
+  <meta name="twitter:image" content="https://fortube.online/ForTube_icon_512px_under_500KB.png">
+  
+  <!-- ✅ SCHEMA.ORG STRUCTURED DATA -->
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "WebSite",
+    "name": "ForTube",
+    "alternateName": ["For Tube", "ForTube Video", "ForTube Online"],
+    "url": "https://fortube.online/",
+    "logo": "https://fortube.online/ForTube_icon_512px_under_500KB.png",
+    "description": "ForTube is a free video sharing platform where you can watch, upload and share videos.",
+    "sameAs": [
+      "https://github.com/syedtechnical63-wq/ForTube-V"
+    ],
+    "potentialAction": {
+      "@type": "SearchAction",
+      "target": "https://fortube.online/?q={search_term_string}",
+      "query-input": "required name=search_term_string"
+    }
+  }
+  </script>
+  
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "Organization",
+    "name": "ForTube",
+    "url": "https://fortube.online/",
+    "logo": "https://fortube.online/ForTube_icon_512px_under_500KB.png",
+    "description": "ForTube - Free video sharing and live streaming platform.",
+    "email": "syedtechnical63@gmail.com"
+  }
+  </script>
+  
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "FAQPage",
+    "mainEntity": [
+      {
+        "@type": "Question",
+        "name": "What is ForTube?",
+        "acceptedAnswer": {
+          "@type": "Answer",
+          "text": "ForTube is a free video sharing platform where users can watch, upload and share videos. It also supports live streaming, channel creation, and Creator Rewards monetization."
+        }
+      },
+      {
+        "@type": "Question",
+        "name": "How do I upload videos on ForTube?",
+        "acceptedAnswer": {
+          "@type": "Answer",
+          "text": "To upload a video on ForTube: 1) Sign in with email, 2) Tap the + button, 3) Choose Upload Video or Upload Short, 4) Fill in title and description, 5) Tap Publish."
+        }
+      },
+      {
+        "@type": "Question",
+        "name": "How does ForTube Creator Rewards work?",
+        "acceptedAnswer": {
+          "@type": "Answer",
+          "text": "ForTube Creator Rewards pays $1 per 500 subscribers and $0.50 per 1,000 watch hours. Requirements: 1,000,000 views, 4,000 watch hours, and 1,000 subscribers."
+        }
+      },
+      {
+        "@type": "Question",
+        "name": "Is ForTube free to use?",
+        "acceptedAnswer": {
+          "@type": "Answer",
+          "text": "Yes, ForTube is completely free. You can watch, upload, and share videos without any cost. Sign up with just an email address."
+        }
+      }
+    ]
+  }
+  </script>
+  
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+  <link rel="stylesheet" href="style.css">
+  <link rel="icon" type="image/png" href="ForTube_icon_512px_under_500KB.png">
+  
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="https://download.agora.io/sdk/release/AgoraRTC_N-4.20.0.js"></script>
+  
+  <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-9456251580809458"
+     crossorigin="anonymous"></script>
+</head>
+<body>
+  <div class="app" id="app">
+
+    <!-- LOGIN GATE (Hidden by default - only shows on actions) -->
+    <div class="login-gate hide" id="loginGate">
+      <button class="gate-close-btn" id="gateCloseBtn" style="position:absolute;top:calc(16px + env(safe-area-inset-top));right:16px;width:40px;height:40px;border-radius:12px;background:#e1f0fa;border:none;color:#0e5a8a;font-size:1.1rem;cursor:pointer;display:flex;align-items:center;justify-content:center;z-index:10;"><i class="fas fa-times"></i></button>
+      <div class="gate-logo">
+        <div class="gate-logo-circle">
+          <div class="gate-logo-triangle"></div>
+        </div>
+      </div>
+      <div class="gate-title">ForTube</div>
+      <div class="gate-sub">Sign in to continue.<br>Create a channel and upload videos.</div>
+      <div class="gate-form">
+        <label for="gateEmail">Email address</label>
+        <input type="email" id="gateEmail" placeholder="you@example.com" autocomplete="email">
+        <label for="gatePassword">Password</label>
+        <input type="password" id="gatePassword" placeholder="••••••••" autocomplete="current-password">
+        <div style="display:flex;align-items:center;gap:8px;margin-top:14px;font-size:0.75rem;color:#4d7e8c;">
+          <input type="checkbox" id="ageConfirm" style="width:auto;">
+          <label for="ageConfirm" style="margin:0;font-weight:500;cursor:pointer;">I am 13 years or older</label>
+        </div>
+        <button class="gate-btn" id="gateLoginBtn"><i class="fas fa-sign-in-alt"></i> Login / Sign Up</button>
+        <button type="button" id="forgotPasswordLink" style="background:none;border:none;color:#1d7e5c;font-size:0.78rem;font-weight:700;margin-top:12px;cursor:pointer;text-decoration:underline;width:100%;">Forgot Password?</button>
+      </div>
+      <div class="gate-note">By continuing you agree to ForTube's Terms & Privacy Policy.</div>
+    </div>
+
+    <!-- HEADER -->
+    <div class="header">
+      <div class="header-left">
+        <button class="hamburger" id="hamburgerBtn" aria-label="Menu">
+          <span></span><span></span><span></span>
+        </button>
+        <div class="logo">
+          <div class="logo-icon">
+            <div class="logo-icon-triangle"></div>
+          </div>
+          <div class="logo-text">ForTube</div>
+        </div>
+      </div>
+      <div class="header-actions">
+        <button class="icon-btn" id="darkModeBtn" title="Dark Mode"><i class="fas fa-moon"></i></button>
+        <button class="icon-btn" id="settingsBtn" title="Settings"><i class="fas fa-cog"></i></button>
+        <button class="icon-btn" id="notifBtn" title="Notifications">
+          <i class="fas fa-bell"></i>
+          <span class="notif-dot" id="notifDot" style="display:none;"></span>
+        </button>
+      </div>
+    </div>
+
+    <!-- SEARCH -->
+    <div class="search-section">
+      <div class="search-wrapper">
+        <i class="fas fa-search"></i>
+        <input type="text" id="searchInput" placeholder="Search ForTube...">
+        <button class="mic-btn" id="micBtn" title="Voice search"><i class="fas fa-microphone"></i></button>
+        <button class="search-btn" id="searchBtn" title="Search"><i class="fas fa-arrow-right"></i></button>
+      </div>
+      <div class="search-filters" id="searchFilters" style="display:none;">
+        <button class="filter-chip active" data-sort="relevant">Relevant</button>
+        <button class="filter-chip" data-sort="views">Most Views</button>
+        <button class="filter-chip" data-sort="recent">Recent</button>
+        <button class="filter-chip" data-sort="likes">Most Liked</button>
+      </div>
+    </div>
+
+    <!-- FEED -->
+    <div class="feed" id="feed">
+      <div class="feed-title" id="feedTitle"><i class="fas fa-home"></i> Home</div>
+      <div class="empty-feed" id="emptyFeed">
+        <i class="fas fa-video"></i>
+        <h3>No videos yet</h3>
+        <p>Tap the + button below to upload your first video!</p>
+      </div>
+    </div>
+
+    <!-- SHORTS FEED -->
+    <div class="shorts-feed" id="shortsFeed" style="display:none;"></div>
+
+    <!-- BOTTOM NAV -->
+    <div class="bottom-nav">
+      <div class="nav-item active" data-tab="home">
+        <i class="fas fa-home"></i><span>Home</span>
+      </div>
+      <div class="nav-item" data-tab="shorts">
+        <i class="fas fa-bolt"></i><span>Shorts</span>
+      </div>
+      <div class="nav-plus" id="navPlus" title="Create">
+        <i class="fas fa-plus"></i>
+      </div>
+      <div class="nav-item" data-tab="subs">
+        <i class="fas fa-users"></i><span>Subscriptions</span>
+      </div>
+      <div class="nav-item" data-tab="you" id="navYou">
+        <i class="fas fa-user"></i><span>You</span>
+      </div>
+    </div>
+
+    <!-- PLUS MENU -->
+    <div class="plus-menu-overlay" id="plusMenuOverlay"></div>
+    <div class="plus-menu" id="plusMenu">
+      <div class="plus-menu-option" id="plusUploadBtn">
+        <div class="plus-icon-wrap" style="background:linear-gradient(135deg,#1e8b4b,#1c7aa3);">
+          <i class="fas fa-video"></i>
+        </div>
+        <div class="plus-text">
+          <h4>Upload Video</h4>
+          <p>Record or pick from gallery</p>
+        </div>
+      </div>
+      <div class="plus-menu-option" id="plusShortBtn">
+        <div class="plus-icon-wrap" style="background:linear-gradient(135deg,#ff6b00,#ff3b3b);">
+          <i class="fas fa-bolt"></i>
+        </div>
+        <div class="plus-text">
+          <h4>Upload Short</h4>
+          <p>Create a short video (max 60s)</p>
+        </div>
+      </div>
+      <div class="plus-menu-option" id="plusLiveBtn" style="position:relative;">
+        <div class="plus-icon-wrap" style="background:linear-gradient(135deg,#ff3b3b,#ff6b00);">
+          <i class="fas fa-broadcast-tower"></i>
+        </div>
+        <div class="plus-text">
+          <h4>Go Live <span id="liveSubsBadge" style="font-size:0.65rem;background:#e8f5ee;color:#0a6b3c;padding:2px 8px;border-radius:20px;margin-left:6px;"></span></h4>
+          <p>Start live streaming</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- LIVE SETUP MODAL -->
+    <div class="live-setup-modal" id="liveSetupModal">
+      <div class="live-setup-inner">
+        <div class="live-setup-header">
+          <button class="back-btn" id="liveSetupBackBtn"><i class="fas fa-arrow-left"></i></button>
+          <h3><i class="fas fa-broadcast-tower"></i> Go Live</h3>
+        </div>
+        <div class="live-setup-body">
+          <div class="live-preview-box">
+            <video id="livePreviewVideo" autoplay playsinline muted></video>
+            <div class="live-preview-overlay">
+              <span class="live-dot"></span> PREVIEW
+            </div>
+          </div>
+          <label class="metadata-label">Live Title *</label>
+          <input type="text" id="liveTitle" class="metadata-input" placeholder="e.g. Live Gaming Session">
+          <label class="metadata-label">Description</label>
+          <textarea id="liveDescription" class="metadata-textarea" placeholder="Tell viewers what you're streaming..."></textarea>
+          <label class="metadata-label">Category</label>
+          <select id="liveCategory" class="metadata-select">
+            <option value="Gaming">Gaming</option>
+            <option value="Sports">Sports</option>
+            <option value="Music">Music</option>
+            <option value="Education">Education</option>
+            <option value="Entertainment">Entertainment</option>
+            <option value="News">News</option>
+            <option value="Tech">Tech</option>
+            <option value="Cooking">Cooking</option>
+            <option value="Travel">Travel</option>
+            <option value="Fitness">Fitness</option>
+          </select>
+          <label class="metadata-label">Tags</label>
+          <div class="tag-input-wrap">
+            <input type="text" id="liveTagInput" class="metadata-input" placeholder="gaming, live">
+            <button class="tag-add-btn" id="liveAddTagBtn"><i class="fas fa-plus"></i></button>
+          </div>
+          <div class="tags-container" id="liveTagsContainer"></div>
+          <label class="metadata-label">Visibility</label>
+          <div class="visibility-row">
+            <div class="visibility-option active" data-livevis="public"><i class="fas fa-globe"></i> Public</div>
+            <div class="visibility-option" data-livevis="unlisted"><i class="fas fa-link"></i> Unlisted</div>
+          </div>
+        </div>
+        <div class="publish-bar">
+          <button class="btn btn-secondary" id="liveSetupCancelBtn">Cancel</button>
+          <button class="btn btn-primary" id="liveStartBtn"><i class="fas fa-broadcast-tower"></i> Start Live</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- LIVE STREAMING PAGE -->
+    <div class="live-stream-page" id="liveStreamPage">
+      <div class="live-stream-header">
+        <div class="live-badge-animated"><span class="live-dot"></span> LIVE</div>
+        <div class="live-viewer-count" id="liveViewerCount"><i class="fas fa-eye"></i> 0 viewers</div>
+        <button class="live-end-btn" id="liveEndBtn"><i class="fas fa-stop"></i> End Live</button>
+      </div>
+      <div class="live-stream-body">
+        <div id="liveBroadcastContainer" class="live-broadcast-container"></div>
+        <div class="live-stream-info">
+          <h3 id="liveStreamTitle">Live Stream</h3>
+          <div class="live-stream-meta">
+            <span><i class="fas fa-user"></i> <span id="liveStreamChannel">Channel</span></span>
+            <span><i class="fas fa-clock"></i> <span id="liveStreamDuration">00:00</span></span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- LIVE WATCH PAGE -->
+    <div class="live-watch-page" id="liveWatchPage">
+      <div class="watch-header">
+        <button class="back-btn" id="liveWatchBackBtn"><i class="fas fa-arrow-left"></i></button>
+        <h3 id="liveWatchHeaderTitle">Live Stream</h3>
+      </div>
+      <div class="live-watch-body">
+        <div class="live-watch-video-area">
+          <div id="liveWatchContainer" class="live-watch-container"></div>
+          <div class="live-badge-floating"><span class="live-dot"></span> LIVE</div>
+          <div class="live-viewer-badge" id="liveWatchViewers"><i class="fas fa-eye"></i> 0</div>
+        </div>
+        <div class="watch-info">
+          <div class="watch-title" id="liveWatchTitle">Live Stream</div>
+          <div class="watch-meta">
+            <span><i class="fas fa-user"></i> <span id="liveWatchChannel">Channel</span></span>
+            <span><i class="fas fa-clock"></i> <span id="liveWatchDuration">00:00</span></span>
+          </div>
+          <div class="watch-channel-row">
+            <div class="watch-channel-icon" id="liveWatchChannelIcon" style="cursor:pointer;">👤</div>
+            <div class="watch-channel-info" id="liveWatchChannelInfo" style="cursor:pointer;">
+              <div class="watch-channel-name" id="liveWatchChannelName"><i class="fas fa-check-circle"></i> Channel</div>
+              <div class="watch-channel-subs" id="liveWatchSubsCount">0 subscribers</div>
+            </div>
+            <button class="subscribe-btn" id="liveWatchSubBtn"><i class="fas fa-plus"></i> Subscribe</button>
+          </div>
+          <div class="watch-actions">
+            <button class="action-btn" id="liveLikeBtn"><i class="fas fa-thumbs-up"></i> <span id="liveLikeCount">0</span></button>
+            <button class="action-btn" id="liveShareBtn"><i class="fas fa-share"></i> Share</button>
+          </div>
+          <div class="watch-desc" id="liveWatchDesc">Live stream description</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- SIDE DRAWER -->
+    <div class="drawer-overlay" id="drawerOverlay"></div>
+    <div class="drawer" id="drawer">
+      <div class="drawer-header">
+        <h3><i class="fas fa-play-circle"></i> ForTube</h3>
+        <p id="drawerUserEmail">Not signed in</p>
+      </div>
+      <div class="drawer-links">
+        <div class="drawer-link" data-drawer="home"><i class="fas fa-home"></i> Home</div>
+        <div class="drawer-link" data-drawer="trending"><i class="fas fa-fire"></i> Trending</div>
+        <div class="drawer-link" data-drawer="live"><i class="fas fa-broadcast-tower"></i> Live Now</div>
+        <div class="drawer-link" data-drawer="gaming"><i class="fas fa-gamepad"></i> Gaming</div>
+        <div class="drawer-link" data-drawer="sports"><i class="fas fa-futbol"></i> Sports</div>
+        <div class="drawer-link" data-drawer="yourvideos"><i class="fas fa-video"></i> Your Videos</div>
+        <div class="drawer-divider"></div>
+        <div class="drawer-link" data-drawer="watchlater"><i class="fas fa-clock"></i> Watch Later</div>
+        <div class="drawer-link" data-drawer="playlists"><i class="fas fa-list"></i> Playlists</div>
+        <div class="drawer-divider"></div>
+        <div class="drawer-link" data-drawer="music"><i class="fas fa-music"></i> Music</div>
+        <div class="drawer-link" data-drawer="news"><i class="fas fa-newspaper"></i> News</div>
+        <div class="drawer-divider"></div>
+        <div class="drawer-link" data-drawer="settings"><i class="fas fa-cog"></i> Settings</div>
+        <div class="drawer-link" data-drawer="help"><i class="fas fa-question-circle"></i> Help</div>
+      </div>
+    </div>
+
+    <!-- PROFILE PANEL -->
+    <div class="profile-panel" id="profilePanel">
+      <div class="profile-header-bar">
+        <button class="back-btn" id="profileBackBtn"><i class="fas fa-arrow-left"></i></button>
+        <h3>Your Channel</h3>
+      </div>
+      <div class="profile-body" id="profileBody"></div>
+    </div>
+
+    <!-- SUBSCRIPTIONS PAGE -->
+    <div class="subscriptions-page" id="subscriptionsPage">
+      <div class="profile-header-bar">
+        <button class="back-btn" id="subsBackBtn"><i class="fas fa-arrow-left"></i></button>
+        <h3>Subscriptions</h3>
+      </div>
+      <div class="subscriptions-body" id="subscriptionsBody">
+        <div class="no-subs">You haven't subscribed to any channel yet.</div>
+      </div>
+    </div>
+
+    <!-- WATCH LATER PAGE -->
+    <div class="watchlater-page" id="watchLaterPage">
+      <div class="profile-header-bar">
+        <button class="back-btn" id="watchLaterBackBtn"><i class="fas fa-arrow-left"></i></button>
+        <h3>Watch Later</h3>
+      </div>
+      <div class="watchlater-body" id="watchLaterBody">
+        <div class="no-subs">No videos saved for later.</div>
+      </div>
+    </div>
+
+    <!-- PLAYLISTS PAGE -->
+    <div class="playlists-page" id="playlistsPage">
+      <div class="profile-header-bar">
+        <button class="back-btn" id="playlistsBackBtn"><i class="fas fa-arrow-left"></i></button>
+        <h3>My Playlists</h3>
+        <button class="icon-btn" id="createPlaylistBtn" style="margin-left:auto;background:rgba(255,255,255,0.2);width:38px;height:38px;"><i class="fas fa-plus"></i></button>
+      </div>
+      <div class="playlists-body" id="playlistsBody">
+        <div class="no-subs">No playlists yet.</div>
+      </div>
+    </div>
+
+    <!-- EDIT CHANNEL -->
+    <div class="channel-setup-page" id="editChannelPage">
+      <div class="edit-channel-header">
+        <button class="back-btn" id="editChannelBackBtn"><i class="fas fa-arrow-left"></i></button>
+        <h3>Edit Channel</h3>
+      </div>
+      <div class="channel-setup-body">
+        <div class="edit-banner" id="editBanner">
+          <div class="banner-overlay" id="editBannerOverlay">
+            <i class="fas fa-image"></i><span>Tap to change banner</span>
+          </div>
+        </div>
+        <div class="edit-avatar-section">
+          <div class="edit-avatar" id="editAvatar">
+            <span id="editAvatarEmoji">👤</span>
+            <div class="avatar-overlay"><i class="fas fa-camera"></i></div>
+          </div>
+          <div class="edit-avatar-hint">Tap avatar to change picture</div>
+        </div>
+        <label class="metadata-label" for="editChannelName">Channel name *</label>
+        <input type="text" id="editChannelName" class="metadata-input" placeholder="e.g. Green Tech">
+        <label class="metadata-label" for="editUsername">Username / Handle *</label>
+        <input type="text" id="editUsername" class="metadata-input" placeholder="@yourhandle">
+        <label class="metadata-label" for="editCategory">Category</label>
+        <select id="editCategory" class="metadata-select">
+          <option value="Gaming">Gaming</option>
+          <option value="Sports">Sports</option>
+          <option value="Music">Music</option>
+          <option value="Education">Education</option>
+          <option value="Entertainment">Entertainment</option>
+          <option value="News">News</option>
+          <option value="Tech">Tech</option>
+          <option value="Cooking">Cooking</option>
+          <option value="Travel">Travel</option>
+          <option value="Fitness">Fitness</option>
+        </select>
+        <label class="metadata-label" for="editLanguage">Language</label>
+        <select id="editLanguage" class="metadata-select">
+          <option value="English">English</option>
+          <option value="Urdu">Urdu</option>
+          <option value="Hindi">Hindi</option>
+          <option value="Arabic">Arabic</option>
+        </select>
+        <label class="metadata-label" for="editCurrency">Currency</label>
+        <select id="editCurrency" class="metadata-select">
+          <option value="USD">USD — US Dollar</option>
+          <option value="PKR">PKR — Pakistani Rupee</option>
+          <option value="INR">INR — Indian Rupee</option>
+          <option value="EUR">EUR — Euro</option>
+        </select>
+        <label class="metadata-label" for="editRegion">Region / Country</label>
+        <select id="editRegion" class="metadata-select">
+          <option value="Global">Global</option>
+          <option value="Pakistan">Pakistan</option>
+          <option value="India">India</option>
+          <option value="United States">United States</option>
+          <option value="United Kingdom">United Kingdom</option>
+        </select>
+        <label class="metadata-label" for="editDesc">Channel description</label>
+        <textarea id="editDesc" class="metadata-textarea" placeholder="Tell viewers about your channel..."></textarea>
+      </div>
+      <div class="publish-bar">
+        <button class="btn btn-secondary" id="editChannelCancelBtn">Cancel</button>
+        <button class="btn btn-primary" id="editChannelSaveBtn"><i class="fas fa-save"></i> Save</button>
+      </div>
+    </div>
+
+    <!-- MONETIZATION -->
+    <div class="monetization-page" id="monetizationPage">
+      <div class="profile-header-bar">
+        <button class="back-btn" id="monetizationBackBtn"><i class="fas fa-arrow-left"></i></button>
+        <h3>Creator Rewards</h3>
+      </div>
+      <div class="monetization-body">
+        
+        <div class="criteria-card" id="eligibilityCard">
+          <h2>Creator Rewards Program</h2>
+          <div class="criteria-sub" id="criteriaSub">
+            Complete all requirements to apply.<br>
+            <strong>Rate: $1 per 500 Subs • $0.50 per 1000 Hours</strong>
+          </div>
+          <div class="criteria-item">
+            <div class="ci-icon"><i class="fas fa-eye"></i></div>
+            <div class="ci-text"><h4>1,000,000 Views</h4><p>From other users</p></div>
+            <span class="ci-progress" id="viewsProgress">0/1000000</span>
+            <i class="fas fa-check-circle ci-check pending" id="check1"></i>
+          </div>
+          <div class="criteria-item">
+            <div class="ci-icon"><i class="fas fa-clock"></i></div>
+            <div class="ci-text"><h4>4,000 Watch Hours</h4><p>From other users</p></div>
+            <span class="ci-progress" id="watchProgress">0/4000</span>
+            <i class="fas fa-check-circle ci-check pending" id="check2"></i>
+          </div>
+          <div class="criteria-item">
+            <div class="ci-icon"><i class="fas fa-users"></i></div>
+            <div class="ci-text"><h4>1,000 Subscribers</h4><p>Active subscribers</p></div>
+            <span class="ci-progress" id="subsProgress">0/1000</span>
+            <i class="fas fa-check-circle ci-check pending" id="check3"></i>
+          </div>
+          <div class="progress-line"><div class="progress-fill" id="progressFill"></div></div>
+          <button class="verify-btn" id="verifyBtn" disabled>Not Eligible Yet</button>
+        </div>
+
+        <div class="criteria-card" id="monetizationApplyPage" style="display:none;">
+          <h2>Apply for Creator Rewards</h2>
+          <div class="criteria-sub">Your channel is eligible. Submit your application.</div>
+          <label class="metadata-label">Email Address</label>
+          <input type="email" id="monetizationEmail" class="metadata-input" placeholder="Enter your email">
+          <button class="verify-btn eligible" id="submitMonetizationApplication" type="button" style="margin-top:18px;">
+            <i class="fas fa-paper-plane"></i> Submit Application
+          </button>
+          <div id="applicationStatus" style="display:none;margin-top:15px;padding:15px;border-radius:15px;text-align:center;font-weight:700;"></div>
+        </div>
+
+        <div class="criteria-card" id="monetizationRevenuePage" style="display:none;">
+          <h2>💰 Creator Dashboard</h2>
+          
+          <div style="text-align:center;margin:25px 0;">
+            <div style="font-size:15px;opacity:.75;">Total Rewards</div>
+            <div style="font-size:2.5rem;font-weight:900;margin-top:5px;">$<span id="totalRevenue">0.00</span></div>
+            <div style="font-size:0.72rem;opacity:.6;margin-top:6px;">$1 per 500 Subs • $0.50 per 1000 Hours</div>
+          </div>
+
+          <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin:20px 0;">
+            <div style="background:linear-gradient(135deg,#e8f5ee,#d6efe0);border-radius:14px;padding:14px 8px;text-align:center;border:1.5px solid #b9e0cf;">
+              <i class="fas fa-eye" style="font-size:1.5rem;color:#1e8b4b;"></i>
+              <div style="font-size:1.4rem;font-weight:900;color:#0b4a5e;margin-top:8px;" id="analyticsViews">0</div>
+              <div style="font-size:0.6rem;color:#4d7e8c;font-weight:700;letter-spacing:0.5px;">VIEWS</div>
+            </div>
+            <div style="background:linear-gradient(135deg,#e1f0fa,#d0e8f5);border-radius:14px;padding:14px 8px;text-align:center;border:1.5px solid #a8d4e8;">
+              <i class="fas fa-clock" style="font-size:1.5rem;color:#1c7aa3;"></i>
+              <div style="font-size:1.4rem;font-weight:900;color:#0b4a5e;margin-top:8px;" id="analyticsWatchTime">0</div>
+              <div style="font-size:0.6rem;color:#4d7e8c;font-weight:700;letter-spacing:0.5px;">WATCH HRS</div>
+            </div>
+            <div style="background:linear-gradient(135deg,#fff4e0,#ffe0b8);border-radius:14px;padding:14px 8px;text-align:center;border:1.5px solid #ffd699;">
+              <i class="fas fa-users" style="font-size:1.5rem;color:#d97706;"></i>
+              <div style="font-size:1.4rem;font-weight:900;color:#0b4a5e;margin-top:8px;" id="analyticsSubs">0</div>
+              <div style="font-size:0.6rem;color:#4d7e8c;font-weight:700;letter-spacing:0.5px;">SUBS</div>
+            </div>
+          </div>
+
+          <div style="background:white;border-radius:14px;padding:14px;margin-bottom:14px;border:1px solid #d9ecf5;">
+            <div style="font-size:0.8rem;font-weight:800;color:#0b4a5e;margin-bottom:10px;">
+              <i class="fas fa-chart-line"></i> Last 7 Days Growth
+            </div>
+            <canvas id="analyticsChart" style="width:100%;height:200px;"></canvas>
+          </div>
+
+          <div style="background:#f7fcff;border-radius:14px;padding:14px;margin-bottom:14px;border:1px solid #d9ecf5;">
+            <div style="font-size:0.8rem;font-weight:800;color:#0b4a5e;margin-bottom:10px;">
+              <i class="fas fa-chart-pie"></i> Rewards Breakdown
+            </div>
+            <div style="display:flex;justify-content:space-between;font-size:0.78rem;color:#4d7e8c;padding:6px 0;">
+              <span><i class="fas fa-users" style="color:#d97706;width:16px;"></i> Subscribers Rewards</span>
+              <span id="revenueFromSubs" style="font-weight:800;color:#1e8b4b;">$0.00</span>
+            </div>
+            <div style="display:flex;justify-content:space-between;font-size:0.78rem;color:#4d7e8c;padding:6px 0;">
+              <span><i class="fas fa-clock" style="color:#1c7aa3;width:16px;"></i> Watch Time Rewards</span>
+              <span id="revenueFromWatch" style="font-weight:800;color:#1c7aa3;">$0.00</span>
+            </div>
+            <div style="display:flex;justify-content:space-between;font-size:0.9rem;color:#0b4a5e;padding:8px 0;border-top:2px solid #cbe3f0;margin-top:8px;">
+              <span style="font-weight:800;">Total Rewards</span>
+              <span id="totalRevenueBreakdown" style="font-weight:900;color:#1e8b4b;">$0.00</span>
+            </div>
+          </div>
+
+          <div class="criteria-item">
+            <div class="ci-icon"><i class="fas fa-eye"></i></div>
+            <div class="ci-text"><h4>Qualified Views</h4><p>From other users</p></div>
+            <span class="ci-progress" id="qualifiedViewsRevenue">0</span>
+          </div>
+
+          <div class="withdraw-input-section">
+            <div class="wis-balance">
+              <span class="wis-balance-label">Available Balance</span>
+              <span class="wis-balance-amount">$<span id="currentRevenue">0.00</span></span>
+            </div>
+            <label class="wis-label">Enter Withdrawal Amount (USD) *</label>
+            <div class="wis-input-wrap">
+              <span class="wis-dollar">$</span>
+              <input type="number" id="withdrawAmountInput" class="wis-input" placeholder="Minimum 10.00" step="0.01" min="10">
+            </div>
+            <div class="wis-hint">
+              <i class="fas fa-info-circle"></i>
+              Minimum withdrawal: <strong>$10.00</strong>
+            </div>
+            <div id="withdrawError" class="wis-error" style="display:none;"></div>
+          </div>
+
+          <button id="withdrawRevenueBtn" type="button" class="verify-btn eligible" style="margin-top:20px;width:100%;font-size:1rem;padding:15px;">
+            <i class="fas fa-external-link-alt"></i> Redeem Rewards
+          </button>
+        </div>
+
+      </div>
+    </div>
+
+    <!-- WATCH PAGE -->
+    <div class="watch-page" id="watchPage">
+      <div class="watch-header">
+        <button class="back-btn" id="watchBackBtn"><i class="fas fa-arrow-left"></i></button>
+        <h3 id="watchHeaderTitle">Now watching</h3>
+      </div>
+      <div class="watch-body" id="watchBody"></div>
+    </div>
+
+    <!-- CHANNEL VIEW PAGE -->
+    <div class="channel-view-page" id="channelViewPage">
+      <div class="channel-view-header">
+        <button class="back-btn" id="channelViewBackBtn"><i class="fas fa-arrow-left"></i></button>
+        <h3 id="channelViewHeaderTitle">Channel</h3>
+      </div>
+      <div class="channel-view-body" id="channelViewBody"></div>
+    </div>
+
+    <!-- CHANNEL SETUP -->
+    <div class="channel-setup-page" id="channelSetupPage">
+      <div class="channel-setup-header">
+        <button class="back-btn" id="channelSetupBackBtn"><i class="fas fa-arrow-left"></i></button>
+        <h3>Create your channel</h3>
+      </div>
+      <div class="channel-setup-body">
+        <div class="setup-banner" id="setupBanner">
+          <div class="banner-overlay" id="bannerOverlay">
+            <i class="fas fa-image"></i><span>Tap to add banner</span>
+          </div>
+        </div>
+        <div class="setup-avatar-section">
+          <div class="setup-avatar" id="setupAvatar">
+            <span id="setupAvatarEmoji">👤</span>
+            <div class="avatar-overlay"><i class="fas fa-camera"></i></div>
+          </div>
+        </div>
+        <label class="metadata-label" for="setupChannelName">Channel name *</label>
+        <input type="text" id="setupChannelName" class="metadata-input" placeholder="e.g. Green Tech">
+        <label class="metadata-label" for="setupUsername">Username / Handle *</label>
+        <input type="text" id="setupUsername" class="metadata-input" placeholder="@yourhandle">
+        <label class="metadata-label" for="setupCategory">Category</label>
+        <select id="setupCategory" class="metadata-select">
+          <option value="Gaming">Gaming</option>
+          <option value="Sports">Sports</option>
+          <option value="Music">Music</option>
+          <option value="Education">Education</option>
+          <option value="Entertainment">Entertainment</option>
+          <option value="News">News</option>
+          <option value="Tech">Tech</option>
+          <option value="Cooking">Cooking</option>
+          <option value="Travel">Travel</option>
+          <option value="Fitness">Fitness</option>
+        </select>
+        <label class="metadata-label" for="setupLanguage">Language</label>
+        <select id="setupLanguage" class="metadata-select">
+          <option value="English">English</option>
+          <option value="Urdu">Urdu</option>
+          <option value="Hindi">Hindi</option>
+          <option value="Arabic">Arabic</option>
+        </select>
+        <label class="metadata-label" for="setupCurrency">Currency</label>
+        <select id="setupCurrency" class="metadata-select">
+          <option value="USD">USD — US Dollar</option>
+          <option value="PKR">PKR — Pakistani Rupee</option>
+          <option value="INR">INR — Indian Rupee</option>
+        </select>
+        <label class="metadata-label" for="setupRegion">Region / Country</label>
+        <select id="setupRegion" class="metadata-select">
+          <option value="Global">Global</option>
+          <option value="Pakistan">Pakistan</option>
+          <option value="India">India</option>
+          <option value="United States">United States</option>
+        </select>
+        <label class="metadata-label" for="setupDesc">Channel description</label>
+        <textarea id="setupDesc" class="metadata-textarea" placeholder="Tell viewers about your channel..."></textarea>
+      </div>
+      <div class="publish-bar">
+        <button class="btn btn-secondary" id="channelSetupCancelBtn">Cancel</button>
+        <button class="btn btn-primary" id="channelSetupCreateBtn"><i class="fas fa-check-circle"></i> Create Channel</button>
+      </div>
+    </div>
+
+    <!-- SETTINGS PAGE -->
+    <div class="settings-page" id="settingsPage">
+      <div class="profile-header-bar">
+        <button class="back-btn" id="settingsBackBtn"><i class="fas fa-arrow-left"></i></button>
+        <h3>Settings</h3>
+      </div>
+      <div class="settings-body">
+        <div class="settings-section">
+          <h4><i class="fas fa-user-cog"></i> Account</h4>
+          <div class="settings-item">
+            <div class="settings-item-left">
+              <i class="fas fa-envelope"></i>
+              <span>Email<small id="settingsEmail">user@example.com</small></span>
+            </div>
+          </div>
+          <div class="settings-item">
+            <div class="settings-item-left">
+              <i class="fas fa-user-circle"></i>
+              <span>Channel</span>
+            </div>
+            <span class="small-action-btn" id="settingsChannelStatus">None</span>
+          </div>
+          <div class="settings-item">
+            <div class="settings-item-left">
+              <i class="fas fa-key"></i>
+              <span>Change Password</span>
+            </div>
+            <button class="small-action-btn" id="changePasswordBtn">Reset</button>
+          </div>
+        </div>
+
+        <div class="settings-section">
+          <h4><i class="fas fa-palette"></i> Appearance</h4>
+          <div class="settings-item">
+            <div class="settings-item-left">
+              <i class="fas fa-moon"></i>
+              <span>Dark Mode</span>
+            </div>
+            <div class="settings-toggle" id="toggleDarkMode"></div>
+          </div>
+        </div>
+
+        <div class="settings-section">
+          <h4><i class="fas fa-sliders-h"></i> Preferences</h4>
+          <div class="settings-item">
+            <div class="settings-item-left">
+              <i class="fas fa-language"></i>
+              <span>Language</span>
+            </div>
+            <select id="settingsLanguage">
+              <option value="English">English</option>
+              <option value="Urdu">Urdu</option>
+              <option value="Hindi">Hindi</option>
+            </select>
+          </div>
+          <div class="settings-item">
+            <div class="settings-item-left">
+              <i class="fas fa-globe"></i>
+              <span>Region</span>
+            </div>
+            <select id="settingsRegion">
+              <option value="Global">Global</option>
+              <option value="Pakistan">Pakistan</option>
+              <option value="India">India</option>
+            </select>
+          </div>
+          <div class="settings-item">
+            <div class="settings-item-left">
+              <i class="fas fa-money-bill-wave"></i>
+              <span>Currency</span>
+            </div>
+            <select id="settingsCurrency">
+              <option value="USD">USD</option>
+              <option value="PKR">PKR</option>
+              <option value="INR">INR</option>
+            </select>
+          </div>
+          <div class="settings-item">
+            <div class="settings-item-left">
+              <i class="fas fa-video"></i>
+              <span>Video Quality</span>
+            </div>
+            <select id="settingsQuality">
+              <option value="auto">Auto</option>
+              <option value="1080p">1080p</option>
+              <option value="720p">720p</option>
+              <option value="480p">480p</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="settings-section">
+          <h4><i class="fas fa-toggle-on"></i> Playback & Privacy</h4>
+          <div class="settings-item">
+            <div class="settings-item-left">
+              <i class="fas fa-closed-captioning"></i>
+              <span>Subtitles</span>
+            </div>
+            <div class="settings-toggle" id="toggleSubtitles"></div>
+          </div>
+          <div class="settings-item">
+            <div class="settings-item-left">
+              <i class="fas fa-ad"></i>
+              <span>Restricted mode<small>Hide mature content</small></span>
+            </div>
+            <div class="settings-toggle" id="toggleRestricted"></div>
+          </div>
+          <div class="settings-item">
+            <div class="settings-item-left">
+              <i class="fas fa-history"></i>
+              <span>Save watch history</span>
+            </div>
+            <div class="settings-toggle active" id="toggleHistory"></div>
+          </div>
+          <div class="settings-item">
+            <div class="settings-item-left">
+              <i class="fas fa-bell"></i>
+              <span>Notifications</span>
+            </div>
+            <div class="settings-toggle active" id="toggleNotifications"></div>
+          </div>
+        </div>
+
+        <div class="settings-section">
+          <h4><i class="fas fa-shield-alt"></i> Data & Storage</h4>
+          <div class="settings-item">
+            <div class="settings-item-left">
+              <i class="fas fa-database"></i>
+              <span>Clear cache</span>
+            </div>
+            <button class="small-action-btn" id="clearCacheBtn">Clear</button>
+          </div>
+        </div>
+
+        <div class="settings-section" id="adminSection" style="display:none;">
+          <h4><i class="fas fa-shield-alt"></i> Admin Panel</h4>
+          <div class="settings-item">
+            <div class="settings-item-left">
+              <i class="fas fa-flag"></i>
+              <span>Reports<small>Review reported videos</small></span>
+            </div>
+            <button class="small-action-btn" id="openAdminPanelBtn" style="background:#fee2e2;color:#b91c1c;">Open</button>
+          </div>
+        </div>
+
+        <div class="settings-section">
+          <h4><i class="fas fa-info-circle"></i> About</h4>
+          <div class="settings-item">
+            <div class="settings-item-left">
+              <i class="fas fa-file-alt"></i>
+              <span>Terms & Privacy</span>
+            </div>
+            <button class="small-action-btn" id="termsBtn">View</button>
+          </div>
+          <div class="settings-item">
+            <div class="settings-item-left">
+              <i class="fas fa-envelope"></i>
+              <span>Contact support</span>
+            </div>
+            <button class="small-action-btn" id="contactBtn">Email</button>
+          </div>
+        </div>
+
+        <div class="settings-section">
+          <h4><i class="fas fa-sign-out-alt"></i> Account Actions</h4>
+          <div class="settings-item">
+            <div class="settings-item-left">
+              <i class="fas fa-sign-out-alt"></i>
+              <span>Log out</span>
+            </div>
+            <button class="small-action-btn danger-btn" id="logoutBtn">Log out</button>
+          </div>
+          <div class="settings-item">
+            <div class="settings-item-left">
+              <i class="fas fa-trash-alt"></i>
+              <span>Delete account</span>
+            </div>
+            <button class="small-action-btn danger-btn" id="deleteAccountBtn">Delete</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- NOTIFICATIONS PAGE -->
+    <div class="notifications-page" id="notificationsPage">
+      <div class="profile-header-bar">
+        <button class="back-btn" id="notificationsBackBtn"><i class="fas fa-arrow-left"></i></button>
+        <h3>Notifications</h3>
+      </div>
+      <div class="notifications-body" id="notificationsBody">
+        <div class="no-notif">No notifications yet</div>
+      </div>
+    </div>
+
+    <!-- CAMERA PANEL -->
+    <div class="camera-panel" id="cameraPanel">
+      <div class="camera-preview">
+        <video id="cameraVideo" autoplay playsinline muted></video>
+        <div class="camera-placeholder" id="cameraPlaceholder">
+          <i class="fas fa-camera"></i>
+          <div>Camera access required.<br>Tap record button to start.</div>
+        </div>
+        <div class="camera-top">
+          <button class="cam-close" id="camClose"><i class="fas fa-times"></i></button>
+          <div class="cam-modes">
+            <button class="cam-mode active" data-mode="video">VIDEO</button>
+            <button class="cam-mode" data-mode="short">SHORT</button>
+          </div>
+          <button class="cam-flip" id="camFlip"><i class="fas fa-sync-alt"></i></button>
+        </div>
+      </div>
+      <div class="camera-bottom">
+        <div class="upload-types">
+          <button class="upload-type-btn" id="longVideoBtn"><i class="fas fa-film"></i> Long</button>
+          <button class="upload-type-btn active" id="shortVideoBtn"><i class="fas fa-bolt"></i> Short</button>
+        </div>
+        <div class="record-row">
+          <button class="gallery-btn" id="galleryBtn"><i class="fas fa-images"></i></button>
+          <button class="record-btn" id="recordBtn">
+            <div class="record-timer" id="recordTimer">00:00</div>
+          </button>
+          <button class="gallery-btn" id="galleryBtn2"><i class="fas fa-photo-video"></i></button>
+        </div>
+      </div>
+    </div>
+
+    <!-- HIDDEN INPUTS -->
+    <input type="file" id="nativeGalleryInput" accept="video/*">
+    <input type="file" id="thumbnailInput" accept="image/*">
+    <input type="file" id="profilePicInput" accept="image/*">
+    <input type="file" id="bannerInput" accept="image/*">
+
+    <!-- UPLOAD MODAL -->
+    <div class="upload-details-modal" id="uploadDetailsModal">
+      <div class="upload-details-inner">
+        <h3><i class="fas fa-upload"></i> Upload details</h3>
+        <div class="upload-preview-box" id="uploadPreviewBox">
+          <i class="fas fa-play-circle"></i>
+          <span class="preview-dur" id="uploadPreviewDur">0:00</span>
+        </div>
+        <label for="uploadTitle">Video title</label>
+        <input type="text" id="uploadTitle" placeholder="Give your video a title">
+        <div class="modal-actions">
+          <button class="btn btn-secondary" id="uploadCancel">Cancel</button>
+          <button class="btn btn-primary" id="uploadNextBtn"><i class="fas fa-arrow-right"></i> Next</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- METADATA PAGE -->
+    <div class="metadata-page" id="metadataPage">
+      <div class="metadata-header">
+        <button class="back-btn" id="metadataBackBtn"><i class="fas fa-arrow-left"></i></button>
+        <h3>Video details</h3>
+      </div>
+      <div class="metadata-body">
+        <label class="metadata-label">Thumbnail</label>
+        <div class="thumbnail-picker" id="thumbnailPicker">
+          <video id="thumbPreviewVideo" muted playsinline></video>
+          <div class="thumb-overlay" id="thumbOverlay">
+            <i class="fas fa-camera-retro"></i><span>Tap to set thumbnail</span>
+          </div>
+        </div>
+        <div class="thumb-action-row">
+          <button class="thumb-action-btn" id="autoThumbBtn" type="button"><i class="fas fa-magic"></i> Auto-generate</button>
+          <button class="thumb-action-btn" id="customThumbBtn" type="button"><i class="fas fa-upload"></i> Upload custom</button>
+        </div>
+
+        <label class="metadata-label" for="metaTitle">Title *</label>
+        <input type="text" id="metaTitle" class="metadata-input" placeholder="Video title">
+        <label class="metadata-label" for="metaDescription">Description</label>
+        <textarea id="metaDescription" class="metadata-textarea" placeholder="Tell viewers about video"></textarea>
+        <label class="metadata-label" for="metaCategory">Category</label>
+        <select id="metaCategory" class="metadata-select">
+          <option value="Gaming">Gaming</option>
+          <option value="Sports">Sports</option>
+          <option value="Music">Music</option>
+          <option value="Education">Education</option>
+          <option value="Entertainment">Entertainment</option>
+          <option value="News">News</option>
+          <option value="Tech">Tech</option>
+          <option value="Cooking">Cooking</option>
+          <option value="Travel">Travel</option>
+          <option value="Fitness">Fitness</option>
+        </select>
+        <label class="metadata-label" for="metaTagInput">Tags</label>
+        <div class="tag-input-wrap">
+          <input type="text" id="metaTagInput" class="metadata-input" placeholder="gaming, tutorial">
+          <button class="tag-add-btn" id="addTagBtn"><i class="fas fa-plus"></i></button>
+        </div>
+        <div class="tags-container" id="tagsContainer"></div>
+        <label class="metadata-label">Visibility</label>
+        <div class="visibility-row">
+          <div class="visibility-option active" data-vis="public"><i class="fas fa-globe"></i> Public</div>
+          <div class="visibility-option" data-vis="unlisted"><i class="fas fa-link"></i> Unlisted</div>
+          <div class="visibility-option" data-vis="private"><i class="fas fa-lock"></i> Private</div>
+        </div>
+        <div id="uploadProgressWrap" style="display:none; margin-top:18px;">
+          <div style="font-size:0.75rem;color:#0e5a6b;font-weight:700;margin-bottom:6px;" id="uploadProgressText">Uploading... 0%</div>
+          <div style="height:8px;background:#e1f0fa;border-radius:8px;overflow:hidden;">
+            <div id="uploadProgressFill" style="height:100%;width:0%;background:linear-gradient(90deg,#1e8b4b,#1c7aa3);border-radius:8px;transition:width 0.3s;"></div>
+          </div>
+        </div>
+      </div>
+      <div class="publish-bar">
+        <button class="btn btn-secondary" id="metadataCancelBtn">Cancel</button>
+        <button class="btn btn-primary" id="metadataPublishBtn"><i class="fas fa-cloud-upload-alt"></i> Publish</button>
+      </div>
+    </div>
+
+    <!-- VIDEO ACTIONS MENU -->
+    <div class="video-actions-overlay" id="videoActionsOverlay"></div>
+    <div class="video-actions-menu" id="videoActionsMenu">
+      <div class="video-actions-header">
+        <div class="video-actions-thumb" id="vaThumb"></div>
+        <div class="video-actions-info">
+          <div class="video-actions-title" id="vaTitle">Video title</div>
+          <div class="video-actions-meta" id="vaMeta">0 views</div>
+        </div>
+      </div>
+      <div class="video-actions-list">
+        <div class="video-action-item" id="vaEditBtn">
+          <i class="fas fa-edit"></i>
+          <div>
+            <div class="va-label">Edit Video</div>
+            <div class="va-sub">Title, description, category</div>
+          </div>
+        </div>
+        <div class="video-action-item" id="vaPrivacyBtn">
+          <i class="fas fa-globe"></i>
+          <div>
+            <div class="va-label">Change Privacy</div>
+            <div class="va-sub" id="vaPrivacySub">Public</div>
+          </div>
+        </div>
+        <div class="video-action-item" id="vaWatchLaterBtn">
+          <i class="fas fa-clock"></i>
+          <div>
+            <div class="va-label">Save to Watch Later</div>
+            <div class="va-sub">Watch anytime</div>
+          </div>
+        </div>
+        <div class="video-action-item" id="vaPlaylistBtn">
+          <i class="fas fa-list"></i>
+          <div>
+            <div class="va-label">Add to Playlist</div>
+            <div class="va-sub">Organize videos</div>
+          </div>
+        </div>
+        <div class="video-action-item" id="vaReportBtn" style="display:none;">
+          <i class="fas fa-flag" style="background:#fff4e0;color:#d97706;"></i>
+          <div>
+            <div class="va-label">Report Video</div>
+            <div class="va-sub">Copyright, spam, inappropriate</div>
+          </div>
+        </div>
+        <div class="video-action-item danger" id="vaDeleteBtn">
+          <i class="fas fa-trash-alt"></i>
+          <div>
+            <div class="va-label">Delete Video</div>
+            <div class="va-sub">Permanently remove</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- EDIT VIDEO PAGE -->
+    <div class="edit-video-page" id="editVideoPage">
+      <div class="metadata-header">
+        <button class="back-btn" id="editVideoBackBtn"><i class="fas fa-arrow-left"></i></button>
+        <h3>Edit Video</h3>
+      </div>
+      <div class="metadata-body">
+        <label class="metadata-label">Thumbnail</label>
+        <div class="thumbnail-picker" id="editVideoThumb">
+          <div class="thumb-overlay">
+            <i class="fas fa-camera-retro"></i><span>Tap to change</span>
+          </div>
+        </div>
+        <input type="file" id="editVideoThumbInput" accept="image/*" style="display:none;">
+
+        <label class="metadata-label">Title *</label>
+        <input type="text" id="editVideoTitle" class="metadata-input">
+
+        <label class="metadata-label">Description</label>
+        <textarea id="editVideoDesc" class="metadata-textarea"></textarea>
+
+        <label class="metadata-label">Category</label>
+        <select id="editVideoCategory" class="metadata-select">
+          <option value="Gaming">Gaming</option>
+          <option value="Sports">Sports</option>
+          <option value="Music">Music</option>
+          <option value="Education">Education</option>
+          <option value="Entertainment">Entertainment</option>
+          <option value="News">News</option>
+          <option value="Tech">Tech</option>
+          <option value="Cooking">Cooking</option>
+          <option value="Travel">Travel</option>
+          <option value="Fitness">Fitness</option>
+        </select>
+
+        <label class="metadata-label">Privacy</label>
+        <div class="visibility-row">
+          <div class="visibility-option" data-vis="public"><i class="fas fa-globe"></i> Public</div>
+          <div class="visibility-option" data-vis="unlisted"><i class="fas fa-link"></i> Unlisted</div>
+          <div class="visibility-option" data-vis="private"><i class="fas fa-lock"></i> Private</div>
+        </div>
+      </div>
+      <div class="publish-bar">
+        <button class="btn btn-secondary" id="editVideoCancelBtn">Cancel</button>
+        <button class="btn btn-primary" id="editVideoSaveBtn"><i class="fas fa-save"></i> Save Changes</button>
+      </div>
+    </div>
+
+    <!-- TERMS PAGE -->
+    <div class="terms-page" id="termsPage">
+      <div class="profile-header-bar">
+        <button class="back-btn" id="termsBackBtn"><i class="fas fa-arrow-left"></i></button>
+        <h3>Terms & Privacy</h3>
+      </div>
+      <div class="terms-body">
+        <div class="terms-section">
+          <h2>1. Age Requirement</h2>
+          <p>You must be at least <strong>13 years old</strong> to use ForTube.</p>
+        </div>
+        <div class="terms-section">
+          <h2>2. User Accounts</h2>
+          <p>You are responsible for maintaining the confidentiality of your account credentials.</p>
+        </div>
+        <div class="terms-section">
+          <h2>3. Content Guidelines (Copyright Policy)</h2>
+          <p>You may not upload content that is:</p>
+          <ul>
+            <li>Illegal, harmful, or threatening</li>
+            <li>Copyrighted without permission</li>
+            <li>Hateful, abusive, or discriminatory</li>
+            <li>Sexually explicit or violent</li>
+            <li>Spam or misleading</li>
+          </ul>
+          <p><strong>DMCA Notice:</strong> Contact us at <strong>syedtechnical63@gmail.com</strong></p>
+        </div>
+        <div class="terms-section">
+          <h2>4. Content Ownership</h2>
+          <p>You retain ownership of videos you upload.</p>
+        </div>
+        <div class="terms-section">
+          <h2>5. Privacy Policy</h2>
+          <p>We collect minimal data. We do not sell your personal information.</p>
+        </div>
+        <div class="terms-section">
+          <h2>6. Creator Rewards Program</h2>
+          <p>ForTube rewards creators through our <strong>Creator Rewards Program</strong>. Revenue is calculated based on your content's performance:</p>
+          <ul>
+            <li><strong>Subscribers:</strong> $2.00 USD per 1,000 subscribers</li>
+            <li><strong>Watch Hours:</strong> $5.00 USD per 1,000 watch hours</li>
+            <li><strong>Standard Views:</strong> $0.08 USD per 1,000 views (Normal regions)</li>
+            <li><strong>Verified Views:</strong> $1.00 USD per 1,000 views from verified regions (UK, US, Canada, Australia, Germany, France, Netherlands)</li>
+          </ul>
+          <p><strong>Minimum Withdrawal:</strong> $10.00 USD</p>
+          <p><strong>Payment Processing:</strong> Withdrawals are processed within 7-14 business days after approval.</p>
+        </div>
+        <div class="terms-section">
+          <h2>7. Eligibility for Creator Rewards</h2>
+          <p>To become eligible for the Creator Rewards Program, your channel must meet the following criteria:</p>
+          <ul>
+            <li><strong>1,000,000 Views</strong> — Total views across all your videos</li>
+            <li><strong>4,000 Watch Hours</strong> — Total watch time accumulated</li>
+            <li><strong>1,000 Subscribers</strong> — Active subscribers on your channel</li>
+          </ul>
+          <p>Once all three criteria are met, you can apply for the program and start earning.</p>
+        </div>
+        <div class="terms-section">
+          <h2>8. Revenue Calculation</h2>
+          <p>Revenue is generated automatically based on your content's real-time performance:</p>
+          <ul>
+            <li><strong>Standard Regions:</strong> Views from regions like Pakistan, India, and other non-verified countries earn <strong>$0.08 per 1,000 views</strong></li>
+            <li><strong>Premium Regions:</strong> Views from verified countries (UK, US, Canada, Australia, Germany, France, Netherlands) earn <strong>$1.00 per 1,000 views</strong></li>
+            <li><strong>Subscriber Revenue:</strong> Every 1,000 subscribers earn <strong>$2.00 USD</strong></li>
+            <li><strong>Watch Hour Revenue:</strong> Every 1,000 watch hours earn <strong>$5.00 USD</strong></li>
+          </ul>
+          <p>Revenue is updated in real-time and visible on your <strong>Creator Dashboard</strong>.</p>
+        </div>
+        <div class="terms-section">
+          <h2>9. Withdrawal Policy</h2>
+          <p>Creators can withdraw their earnings once the minimum threshold is reached:</p>
+          <ul>
+            <li><strong>Minimum Withdrawal Amount:</strong> $10.00 USD</li>
+            <li><strong>Processing Time:</strong> 7-14 business days after approval</li>
+            <li><strong>Payment Method:</strong> As per selected withdrawal method</li>
+            <li><strong>Withdrawal Requests:</strong> Processed through our secure withdrawal portal</li>
+          </ul>
+          <p>For any withdrawal-related issues, contact us at <strong>syedtechnical63@gmail.com</strong>.</p>
+        </div>
+        <div class="terms-section">
+          <h2>10. Content Moderation (Strike System)</h2>
+          <ul>
+            <li><strong>Strike 1:</strong> Warning (video deleted)</li>
+            <li><strong>Strike 2:</strong> Warning (video deleted)</li>
+            <li><strong>Strike 3:</strong> Permanent account termination</li>
+          </ul>
+          <p>We take copyright violations and community guideline breaches very seriously.</p>
+        </div>
+        <div class="terms-section">
+          <h2>11. Live Streaming Policy</h2>
+          <ul>
+            <li>You must have at least <strong>50 subscribers</strong> to start live streaming</li>
+            <li>Live streams must follow the same content guidelines as regular videos</li>
+            <li>Violations during live streams result in immediate termination of the stream and possible account suspension</li>
+            <li>Live viewer count and revenue are tracked in real-time</li>
+          </ul>
+        </div>
+        <div class="terms-section">
+          <h2>12. Account Termination</h2>
+          <p>ForTube reserves the right to terminate accounts that:</p>
+          <ul>
+            <li>Violate our Terms of Service</li>
+            <li>Upload copyrighted content repeatedly</li>
+            <li>Engage in spam or fraudulent activities</li>
+            <li>Harass or threaten other users</li>
+            <li>Attempt to manipulate the revenue system</li>
+          </ul>
+        </div>
+        <div class="terms-section">
+          <h2>13. Changes to Terms</h2>
+          <p>ForTube reserves the right to update these Terms & Privacy at any time. Users will be notified of significant changes. Continued use of the platform constitutes acceptance of the updated terms.</p>
+        </div>
+        <div class="terms-section">
+          <h2>14. Contact</h2>
+          <p>For any questions, concerns, or support, contact us at:</p>
+          <p><strong>📧 Email:</strong> syedtechnical63@gmail.com</p>
+          <p><strong>🌐 Website:</strong> fortube.online</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- SUPPORT CHAT -->
+    <div class="support-page" id="supportPage">
+      <div class="profile-header-bar">
+        <button class="back-btn" id="supportBackBtn"><i class="fas fa-arrow-left"></i></button>
+        <h3><i class="fas fa-headset"></i> Support Chat</h3>
+      </div>
+      <div class="support-body" id="supportBody">
+        <div class="support-message bot">
+          <div class="support-avatar"><i class="fas fa-robot"></i></div>
+          <div class="support-bubble">
+            <div class="support-text">Hi! 👋 Welcome to ForTube Support. How can I help you today?</div>
+            <div class="support-time">Just now</div>
+          </div>
+        </div>
+        <div class="support-message bot">
+          <div class="support-avatar"><i class="fas fa-robot"></i></div>
+          <div class="support-bubble">
+            <div class="support-text">You can ask me about:</div>
+            <div class="support-quick">
+              <button class="quick-btn" data-msg="How to upload video?">How to upload video?</button>
+              <button class="quick-btn" data-msg="How to go live?">How to go live?</button>
+              <button class="quick-btn" data-msg="Creator Rewards requirements">Creator Rewards requirements</button>
+              <button class="quick-btn" data-msg="Copyright policy">Copyright policy</button>
+            </div>
+            <div class="support-time">Just now</div>
+          </div>
+        </div>
+      </div>
+      <div class="support-input-bar">
+        <input type="text" id="supportInput" placeholder="Type your message..." autocomplete="off">
+        <button class="support-send-btn" id="supportSendBtn"><i class="fas fa-paper-plane"></i></button>
+      </div>
+    </div>
+
+    <!-- REPORT VIDEO MODAL -->
+    <div class="report-modal" id="reportModal">
+      <div class="report-inner">
+        <div class="report-header">
+          <h3><i class="fas fa-flag"></i> Report Video</h3>
+          <button class="report-close-btn" id="reportCloseBtn"><i class="fas fa-times"></i></button>
+        </div>
+        <div class="report-body">
+          <p class="report-desc">Help us keep ForTube safe. Why are you reporting this video?</p>
+          <div class="report-reasons">
+            <div class="report-reason" data-reason="Copyright">
+              <i class="fas fa-copyright"></i>
+              <div><div class="rr-title">Copyright</div><div class="rr-sub">Uses copyrighted content</div></div>
+            </div>
+            <div class="report-reason" data-reason="Violence">
+              <i class="fas fa-exclamation-triangle"></i>
+              <div><div class="rr-title">Violence</div><div class="rr-sub">Harmful or violent</div></div>
+            </div>
+            <div class="report-reason" data-reason="Spam">
+              <i class="fas fa-ban"></i>
+              <div><div class="rr-title">Spam</div><div class="rr-sub">Misleading content</div></div>
+            </div>
+            <div class="report-reason" data-reason="Hate">
+              <i class="fas fa-user-slash"></i>
+              <div><div class="rr-title">Hate Speech</div><div class="rr-sub">Discriminatory</div></div>
+            </div>
+            <div class="report-reason" data-reason="Adult">
+              <i class="fas fa-eye-slash"></i>
+              <div><div class="rr-title">Adult</div><div class="rr-sub">Sexually explicit</div></div>
+            </div>
+            <div class="report-reason" data-reason="Other">
+              <i class="fas fa-ellipsis-h"></i>
+              <div><div class="rr-title">Other</div><div class="rr-sub">Something else</div></div>
+            </div>
+          </div>
+          <label class="report-label">Details (optional)</label>
+          <textarea id="reportDetails" class="report-textarea" placeholder="Explain..."></textarea>
+          <button class="report-submit-btn" id="reportSubmitBtn" disabled>
+            <i class="fas fa-paper-plane"></i> Submit Report
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ADMIN PANEL PAGE -->
+    <div class="admin-panel-page" id="adminPanelPage">
+      <div class="profile-header-bar">
+        <button class="back-btn" id="adminPanelBackBtn"><i class="fas fa-arrow-left"></i></button>
+        <h3><i class="fas fa-shield-alt"></i> Admin Panel</h3>
+      </div>
+      <div class="admin-panel-body">
+        <div class="admin-tabs">
+          <div class="admin-tab active" data-atab="reports"><i class="fas fa-flag"></i> Reports</div>
+          <div class="admin-tab" data-atab="strikes"><i class="fas fa-bolt"></i> Strikes</div>
+          <div class="admin-tab" data-atab="bans"><i class="fas fa-ban"></i> Bans</div>
+        </div>
+        <div class="admin-content" id="adminContent">
+          <div class="admin-loading">Loading...</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- CREATE PLAYLIST MODAL -->
+    <div class="modal-overlay" id="createPlaylistModal">
+      <div class="modal">
+        <h3><i class="fas fa-list"></i> Create Playlist</h3>
+        <label>Playlist Name *</label>
+        <input type="text" id="playlistNameInput" placeholder="e.g. My Favorites">
+        <label>Description</label>
+        <textarea id="playlistDescInput" placeholder="Optional"></textarea>
+        <label>Visibility</label>
+        <select id="playlistVisibility">
+          <option value="public">Public</option>
+          <option value="private">Private</option>
+        </select>
+        <div class="modal-actions">
+          <button class="btn btn-secondary" id="playlistCancelBtn">Cancel</button>
+          <button class="btn btn-primary" id="playlistCreateBtn">Create</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ADD TO PLAYLIST MODAL -->
+    <div class="modal-overlay" id="addToPlaylistModal">
+      <div class="modal">
+        <h3><i class="fas fa-list"></i> Add to Playlist</h3>
+        <div id="playlistSelectList" style="max-height:250px;overflow-y:auto;"></div>
+        <div class="modal-actions">
+          <button class="btn btn-secondary" id="addToPlaylistCancelBtn">Cancel</button>
+          <button class="btn btn-primary" id="createNewPlaylistBtn">+ New Playlist</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ALERT POPUP -->
+    <div class="alert-popup" id="alertPopup">
+      <div class="alert-popup-inner">
+        <div class="alert-icon" id="alertIcon"><i class="fas fa-broadcast-tower"></i></div>
+        <h3 id="alertTitle">Alert</h3>
+        <p id="alertMessage"></p>
+        <button class="alert-btn" id="alertCloseBtn">Got it</button>
+      </div>
+    </div>
+
+    <!-- TOAST -->
+    <div class="toast" id="toast"></div>
+  </div>
+
+  <!-- SEO ARTICLE (Hidden from users, visible to Google) -->
+  <div style="position:absolute;left:-9999px;top:-9999px;width:1px;height:1px;overflow:hidden;" aria-hidden="true">
+    <article>
+      <h1>ForTube - Free Video Sharing & Live Streaming Platform</h1>
+      
+      <p>ForTube is a modern, free video sharing platform that allows users to watch, upload, and share videos with the world. Whether you're a content creator, a viewer, or someone who wants to go live, ForTube provides everything you need in one powerful app.</p>
+      
+      <h2>What is ForTube?</h2>
+      <p>ForTube is an innovative video sharing website that combines the best features of YouTube, TikTok, and live streaming platforms. Built for creators by creators, ForTube offers seamless video uploading, HD playback, short-form content (Shorts), and real-time live broadcasting — all completely free.</p>
+      
+      <h2>Key Features of ForTube</h2>
+      <ul>
+        <li><strong>Unlimited Video Uploads:</strong> Upload long-form videos up to 10 minutes, or create short videos (max 60 seconds) to engage with modern audiences.</li>
+        <li><strong>Live Streaming:</strong> Go live instantly with Agora-powered real-time streaming. Requires only 50 subscribers to unlock.</li>
+        <li><strong>Creator Rewards Program:</strong> Earn real money — $1 per 500 subscribers and $0.50 per 1,000 watch hours. Minimum withdrawal is just $10.</li>
+        <li><strong>Smart Search:</strong> Advanced tag-based search helps viewers discover content across Gaming, Sports, Music, Education, Entertainment, News, Tech, Cooking, Travel, and Fitness.</li>
+        <li><strong>Channel Customization:</strong> Personalize your channel with custom avatars, banners, descriptions, and category tags.</li>
+        <li><strong>Subscriptions & Notifications:</strong> Subscribe to your favorite creators and get notified whenever they upload or go live.</li>
+        <li><strong>Watch Later & Playlists:</strong> Save videos for later viewing and organize them into custom playlists.</li>
+        <li><strong>Dark Mode:</strong> Built-in dark mode for comfortable viewing day or night.</li>
+        <li><strong>Voice Search:</strong> Find videos using your voice with built-in speech recognition.</li>
+      </ul>
+      
+      <h2>How to Upload Videos on ForTube</h2>
+      <ol>
+        <li>Sign up with your email address</li>
+        <li>Create your personal channel (choose name, username, category)</li>
+        <li>Tap the <strong>+</strong> button at the bottom of the screen</li>
+        <li>Choose <strong>Upload Video</strong> (long) or <strong>Upload Short</strong> (max 60 seconds)</li>
+        <li>Record from camera or select from gallery</li>
+        <li>Add a title, description, tags, and thumbnail</li>
+        <li>Choose visibility (Public, Unlisted, or Private)</li>
+        <li>Tap <strong>Publish</strong> — and you're live!</li>
+      </ol>
+      
+      <h2>How to Go Live on ForTube</h2>
+      <p>Live streaming on ForTube is available to creators with 50+ subscribers. To start a live stream, tap the + button and choose Go Live. Your subscribers will be automatically notified!</p>
+      
+      <h2>ForTube Creator Rewards Program</h2>
+      <p>ForTube rewards creators through its innovative Creator Rewards program:</p>
+      <ul>
+        <li><strong>Subscription Rewards:</strong> $1.00 USD for every 500 subscribers gained</li>
+        <li><strong>Watch Time Rewards:</strong> $0.50 USD for every 1,000 watch hours</li>
+        <li><strong>View Bonus:</strong> Additional micro-rewards per view</li>
+      </ul>
+      <p>To become eligible for Creator Rewards, your channel must meet these requirements:</p>
+      <ul>
+        <li>1,000,000 (1 Million) total views</li>
+        <li>4,000 watch hours</li>
+        <li>1,000 active subscribers</li>
+      </ul>
+      <p>The minimum withdrawal amount is only $10.00 USD.</p>
+      
+      <h2>Why Choose ForTube Over Other Video Platforms?</h2>
+      <ul>
+        <li><strong>Zero Cost:</strong> 100% free to upload, watch, and go live</li>
+        <li><strong>Fair Monetization:</strong> Transparent rates without hidden fees</li>
+        <li><strong>Fast Performance:</strong> Optimized for mobile and desktop</li>
+        <li><strong>Privacy First:</strong> Your data stays yours — we never sell personal information</li>
+        <li><strong>Simple Interface:</strong> No confusing menus — just upload and watch</li>
+        <li><strong>Modern Features:</strong> Shorts, Live, Playlists, Watch Later, Voice Search, Dark Mode</li>
+      </ul>
+      
+      <h2>Content Guidelines & Copyright Policy</h2>
+      <p>ForTube has a strict copyright policy. Users may not upload content that is illegal, harmful, threatening, copyrighted without permission, hateful, abusive, discriminatory, sexually explicit, violent, spam, or misleading. Violations result in a three-strike system.</p>
+      
+      <h2>Frequently Asked Questions</h2>
+      
+      <h3>Is ForTube free?</h3>
+      <p>Yes, ForTube is completely free to use. Watching, uploading, and live streaming cost nothing.</p>
+      
+      <h3>How many subscribers do I need for live streaming?</h3>
+      <p>You need at least 50 subscribers to unlock live streaming on ForTube.</p>
+      
+      <h3>What is the maximum video length?</h3>
+      <p>Long videos can be up to 10 minutes. Shorts can be up to 60 seconds.</p>
+      
+      <h3>How do I earn money on ForTube?</h3>
+      <p>Join the Creator Rewards program by reaching 1 million views, 4,000 watch hours, and 1,000 subscribers.</p>
+      
+      <h3>Can I upload videos from my phone?</h3>
+      <p>Yes! ForTube works perfectly on mobile devices.</p>
+      
+      <h3>What categories are available on ForTube?</h3>
+      <p>ForTube supports Gaming, Sports, Music, Education, Entertainment, News, Tech, Cooking, Travel, and Fitness categories.</p>
+      
+      <h2>About ForTube</h2>
+      <p>ForTube was created to give content creators a simple, fair, and powerful platform to share their creativity with the world. Whether you're uploading your first video or building a subscriber base, ForTube provides the tools you need to succeed.</p>
+      
+      <p><strong>Website:</strong> https://fortube.online<br>
+      <strong>Email:</strong> syedtechnical63@gmail.com<br>
+      <strong>Category:</strong> Video Sharing, Live Streaming, Content Creator Platform</p>
+    </article>
+  </div>
+
+  <script src="script.js"></script>
+</body>
+</html>
