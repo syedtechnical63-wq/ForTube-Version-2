@@ -26,7 +26,7 @@ const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_KEY, {
   }
 });
 
-const AGORA_APP_ID = "e84b0914baa44e8c878fb68ade1d804e";
+const AGORA_APP_ID = "5b6523b84df14cf0872d2c1bd2757fbc";
 const ADMIN_EMAILS = ["syedtechnical63@gmail.com"];
 const WITHDRAW_URL = "https://syedtechnical63-wq.github.io/withdrawal/";
 
