@@ -12,7 +12,7 @@
   <meta name="robots" content="index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1">
   <link rel="canonical" href="https://fortube.online/">
   
-  <!-- ✅ OPEN GRAPH (Facebook, WhatsApp, LinkedIn preview) -->
+  <!-- ✅ OPEN GRAPH -->
   <meta property="og:type" content="website">
   <meta property="og:url" content="https://fortube.online/">
   <meta property="og:title" content="ForTube - Free Video Sharing Platform">
@@ -26,7 +26,7 @@
   <meta name="twitter:description" content="Watch, upload and share videos on ForTube. Create your channel, go live, and earn Creator Rewards.">
   <meta name="twitter:image" content="https://fortube.online/ForTube_icon_512px_under_500KB.png">
   
-  <!-- ✅ SCHEMA.ORG STRUCTURED DATA (Google Rich Snippet ke liye) -->
+  <!-- ✅ SCHEMA.ORG STRUCTURED DATA -->
   <script type="application/ld+json">
   {
     "@context": "https://schema.org",
@@ -59,7 +59,6 @@
   }
   </script>
   
-  <!-- ✅ FAQ SCHEMA (Google mein questions dikhayega) -->
   <script type="application/ld+json">
   {
     "@context": "https://schema.org",
@@ -101,24 +100,22 @@
   }
   </script>
   
-  <!-- ✅ STYLESHEETS -->
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
   <link rel="stylesheet" href="style.css">
   <link rel="icon" type="image/png" href="ForTube_icon_512px_under_500KB.png">
   
-  <!-- ✅ SCRIPTS -->
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="https://download.agora.io/sdk/release/AgoraRTC_N-4.20.0.js"></script>
   
-  <!-- ✅ GOOGLE ADSENSE -->
   <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-9456251580809458"
      crossorigin="anonymous"></script>
 </head>
 <body>
   <div class="app" id="app">
 
-    <!-- LOGIN GATE -->
+    <!-- LOGIN GATE (Hidden by default - only shows on actions) -->
     <div class="login-gate hide" id="loginGate">
+      <button class="gate-close-btn" id="gateCloseBtn" style="position:absolute;top:calc(16px + env(safe-area-inset-top));right:16px;width:40px;height:40px;border-radius:12px;background:#e1f0fa;border:none;color:#0e5a8a;font-size:1.1rem;cursor:pointer;display:flex;align-items:center;justify-content:center;z-index:10;"><i class="fas fa-times"></i></button>
       <div class="gate-logo">
         <div class="gate-logo-circle">
           <div class="gate-logo-triangle"></div>
@@ -492,7 +489,6 @@
       </div>
       <div class="monetization-body">
         
-        <!-- ELIGIBILITY CARD -->
         <div class="criteria-card" id="eligibilityCard">
           <h2>Creator Rewards Program</h2>
           <div class="criteria-sub" id="criteriaSub">
@@ -521,7 +517,6 @@
           <button class="verify-btn" id="verifyBtn" disabled>Not Eligible Yet</button>
         </div>
 
-        <!-- APPLY FORM -->
         <div class="criteria-card" id="monetizationApplyPage" style="display:none;">
           <h2>Apply for Creator Rewards</h2>
           <div class="criteria-sub">Your channel is eligible. Submit your application.</div>
@@ -533,7 +528,6 @@
           <div id="applicationStatus" style="display:none;margin-top:15px;padding:15px;border-radius:15px;text-align:center;font-weight:700;"></div>
         </div>
 
-        <!-- REVENUE DASHBOARD -->
         <div class="criteria-card" id="monetizationRevenuePage" style="display:none;">
           <h2>💰 Creator Dashboard</h2>
           
@@ -833,7 +827,6 @@
           </div>
         </div>
 
-        <!-- ADMIN PANEL SECTION -->
         <div class="settings-section" id="adminSection" style="display:none;">
           <h4><i class="fas fa-shield-alt"></i> Admin Panel</h4>
           <div class="settings-item">
@@ -1114,7 +1107,7 @@
       </div>
     </div>
 
-        <!-- TERMS PAGE -->
+    <!-- TERMS PAGE -->
     <div class="terms-page" id="termsPage">
       <div class="profile-header-bar">
         <button class="back-btn" id="termsBackBtn"><i class="fas fa-arrow-left"></i></button>
@@ -1377,10 +1370,7 @@
     <div class="toast" id="toast"></div>
   </div>
 
-  <!-- ================================================
-       SEO ARTICLE (Hidden from users, visible to Google)
-       Purpose: Rank #1 for "ForTube" search
-       ================================================ -->
+  <!-- SEO ARTICLE (Hidden from users, visible to Google) -->
   <div style="position:absolute;left:-9999px;top:-9999px;width:1px;height:1px;overflow:hidden;" aria-hidden="true">
     <article>
       <h1>ForTube - Free Video Sharing & Live Streaming Platform</h1>
